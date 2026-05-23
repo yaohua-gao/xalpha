@@ -343,7 +343,7 @@
       <div class="subtitle">实时跟踪比特币、相关上市公司与现货 ETF · 跨资产 Alpha 信号</div>
     </div>
     <div class="meta">
-      <span><span class="dot"></span> 数据实时 · 更新于 2026-05-22 09:42 HKT</span>
+      <span><span class="dot"></span> 数据实时 · 更新于 <span id="lastUpdated">—</span></span>
       <span>市场状态：<span class="up" style="font-weight:600;">活跃</span></span>
       <span>VIX：<span style="color:var(--text-0); font-weight:600;">14.2</span></span>
     </div>
@@ -353,32 +353,32 @@
   <div class="grid kpi">
     <div class="card kpi-card">
       <div class="label">BTC 现价</div>
-      <div class="value" style="color:var(--btc);">$108,420</div>
-      <div class="delta up">▲ +2.46% · +$2,605 (24h)</div>
+      <div class="value" id="kpiBtcPrice" style="color:var(--btc);">—</div>
+      <div class="delta" id="kpiBtcDelta">—</div>
       <div class="spark"><canvas id="spark1"></canvas></div>
     </div>
     <div class="card kpi-card">
       <div class="label">总市值</div>
-      <div class="value">$2.14T</div>
-      <div class="delta up">▲ +2.31%</div>
+      <div class="value" id="kpiMcap">—</div>
+      <div class="delta" id="kpiMcapDelta">—</div>
       <div class="spark"><canvas id="spark2"></canvas></div>
     </div>
     <div class="card kpi-card">
       <div class="label">BTC 占有率</div>
-      <div class="value">58.7%</div>
-      <div class="delta down">▼ -0.42pp</div>
+      <div class="value" id="kpiDom">—</div>
+      <div class="delta" id="kpiDomDelta">—</div>
       <div class="spark"><canvas id="spark3"></canvas></div>
     </div>
     <div class="card kpi-card">
       <div class="label">现货 ETF 净流入 (24h)</div>
       <div class="value up">+$486M</div>
-      <div class="delta up">▲ 连续 6 日净流入</div>
+      <div class="delta neutral">需 Vercel 代理 · 阶段 B</div>
       <div class="spark"><canvas id="spark4"></canvas></div>
     </div>
     <div class="card kpi-card">
       <div class="label">恐惧 &amp; 贪婪指数</div>
-      <div class="value" style="color:var(--gold);">74 <span style="font-size:12px; color:var(--text-2); font-weight:500;">贪婪</span></div>
-      <div class="delta neutral">昨日 71 · 周均 68</div>
+      <div class="value" id="kpiFng" style="color:var(--gold);">—</div>
+      <div class="delta" id="kpiFngDelta">—</div>
       <div class="spark"><canvas id="spark5"></canvas></div>
     </div>
   </div>
@@ -392,19 +392,19 @@
         <div>
           <div class="row-flex">
             <span class="pill btc">BTC/USD</span>
-            <span style="color:var(--text-2); font-size:12px;">Coinbase · 现货</span>
+            <span style="color:var(--text-2); font-size:12px;">Deribit Index · 现货</span>
           </div>
-          <div class="hero-price"><span class="currency">$</span>108,420.55</div>
+          <div class="hero-price"><span class="currency">$</span><span id="heroPrice">—</span></div>
           <div class="row-flex">
-            <span class="badge up">▲ +2.46%</span>
-            <span style="color:var(--text-2); font-size:12.5px;">+$2,605.41 24h</span>
+            <span class="badge up" id="heroChangePct">—</span>
+            <span style="color:var(--text-2); font-size:12.5px;" id="heroChangeAbs">—</span>
           </div>
           <div class="hero-meta">
-            <div class="item"><div class="k">24h 高</div><div class="v">$109,210</div></div>
-            <div class="item"><div class="k">24h 低</div><div class="v">$105,815</div></div>
-            <div class="item"><div class="k">24h 量</div><div class="v">$48.2B</div></div>
-            <div class="item"><div class="k">资金费率</div><div class="v up">+0.0124%</div></div>
-            <div class="item"><div class="k">永续溢价</div><div class="v up">+0.18%</div></div>
+            <div class="item"><div class="k">24h 高</div><div class="v" id="heroHigh">—</div></div>
+            <div class="item"><div class="k">24h 低</div><div class="v" id="heroLow">—</div></div>
+            <div class="item"><div class="k">24h 量</div><div class="v" id="heroVol">—</div></div>
+            <div class="item"><div class="k">资金费率 (8h)</div><div class="v" id="heroFunding">—</div></div>
+            <div class="item"><div class="k">永续溢价</div><div class="v" id="heroBasis">—</div></div>
           </div>
         </div>
         <div class="card-tabs" style="align-self:flex-start;">
@@ -472,6 +472,82 @@
             <div class="sig-time">08:30 · 链上 · 高置信度</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Volatility Analytics (Deribit live) ========== -->
+  <div class="grid two" style="margin-bottom:16px;">
+
+    <!-- DVOL × RV -->
+    <div class="card hero">
+      <div class="card-head">
+        <h3>DVOL × 实际波动率 <span class="tag">Deribit · 实时</span></h3>
+        <div class="card-tabs" id="dvolRange">
+          <button data-range="30">30D</button>
+          <button class="active" data-range="90">90D</button>
+          <button data-range="180">180D</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:28px; margin-bottom:12px; flex-wrap:wrap;">
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">DVOL 当前</div>
+          <div id="dvolNow" style="font-size:24px; font-weight:700; font-feature-settings:'tnum'; color:var(--brand); margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">RV (近 7D)</div>
+          <div id="rvNow" style="font-size:24px; font-weight:700; font-feature-settings:'tnum'; color:var(--btc); margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">IV−RV 价差</div>
+          <div id="ivRvSpread" style="font-size:24px; font-weight:700; font-feature-settings:'tnum'; margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">VRP 信号</div>
+          <div id="vrpSignal" style="font-size:14px; font-weight:600; margin-top:8px;">—</div>
+        </div>
+      </div>
+      <div class="chart-container" style="height:280px;">
+        <canvas id="dvolRvChart"></canvas>
+      </div>
+      <div style="margin-top:10px; color:var(--text-3); font-size:11px;">
+        DVOL = Deribit 隐含波动率指数 · RV = 历史 30D 年化实际波动率 · 正价差通常意味着卖方溢价（VRP 多头机会）
+      </div>
+    </div>
+
+    <!-- IV Term Structure -->
+    <div class="card">
+      <div class="card-head">
+        <h3>IV 期限结构 <span class="tag">ATM · 实时</span></h3>
+        <span style="color:var(--text-3); font-size:11px;" id="ivTsUpdated">—</span>
+      </div>
+      <div style="display:flex; gap:22px; margin-bottom:12px; flex-wrap:wrap;">
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">前端 ≤7D</div>
+          <div id="ivFront" style="font-size:18px; font-weight:700; font-feature-settings:'tnum'; margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">~30D</div>
+          <div id="iv30" style="font-size:18px; font-weight:700; font-feature-settings:'tnum'; margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">~90D</div>
+          <div id="iv90" style="font-size:18px; font-weight:700; font-feature-settings:'tnum'; margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">≥180D</div>
+          <div id="ivBack" style="font-size:18px; font-weight:700; font-feature-settings:'tnum'; margin-top:4px;">—</div>
+        </div>
+        <div>
+          <div style="color:var(--text-2); font-size:11px; text-transform:uppercase; letter-spacing:0.05em;">曲线形态</div>
+          <div id="ivShape" style="font-size:13px; font-weight:600; margin-top:8px;">—</div>
+        </div>
+      </div>
+      <div class="chart-container" style="height:280px;">
+        <canvas id="ivTermChart"></canvas>
+      </div>
+      <div style="margin-top:10px; color:var(--text-3); font-size:11px;">
+        每个点 = Deribit 该到期合约的 ATM 看涨/看跌 mark IV 均值 · Contango (上行) 偏多 · Backwardation (下行) 警示短期事件风险
       </div>
     </div>
   </div>
@@ -1199,6 +1275,448 @@ document.querySelectorAll('.mini-spark').forEach(c => {
       }
     }
   });
+})();
+</script>
+
+<!-- ================================================================
+     REAL-TIME DATA LAYER · Phase A
+     浏览器直连: Deribit / Binance / CoinGecko / alternative.me
+     无需 API Key · 全部 CORS 友好
+     ================================================================ -->
+<script>
+(function() {
+'use strict';
+
+const API = {
+  DERIBIT:   'https://www.deribit.com/api/v2',
+  BINANCE:   'https://api.binance.com/api/v3',
+  COINGECKO: 'https://api.coingecko.com/api/v3',
+  FNG:       'https://api.alternative.me/fng',
+};
+
+async function api(url, timeout = 12000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+const D = {
+  index:   () => api(`${API.DERIBIT}/public/get_index_price?index_name=btc_usd`),
+  perp:    () => api(`${API.DERIBIT}/public/ticker?instrument_name=BTC-PERPETUAL`),
+  dvol:    (days) => {
+    const end = Date.now(), start = end - days * 86400000;
+    return api(`${API.DERIBIT}/public/get_volatility_index_data?currency=BTC&start_timestamp=${start}&end_timestamp=${end}&resolution=43200`);
+  },
+  rv:      () => api(`${API.DERIBIT}/public/get_historical_volatility?currency=BTC`),
+  options: () => api(`${API.DERIBIT}/public/get_book_summary_by_currency?currency=BTC&kind=option`),
+};
+const B = {
+  klines: (interval = '1d', limit = 90) => api(`${API.BINANCE}/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`),
+  ticker: () => api(`${API.BINANCE}/ticker/24hr?symbol=BTCUSDT`),
+};
+const CG  = { global: () => api(`${API.COINGECKO}/global`) };
+const ALT = { fng: (limit = 2) => api(`${API.FNG}/?limit=${limit}`) };
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+function fmtUSD(n, dec = 0) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1e12) return '$' + (n/1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return '$' + (n/1e9).toFixed(2)  + 'B';
+  if (n >= 1e6)  return '$' + (n/1e6).toFixed(2)  + 'M';
+  return '$' + n.toLocaleString(undefined, { maximumFractionDigits: dec });
+}
+function fmtPrice(n) {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+}
+function fmtPct(n, dec = 2) {
+  if (n == null || isNaN(n)) return '—';
+  return (n >= 0 ? '+' : '') + n.toFixed(dec) + '%';
+}
+function setDelta(el, pct, suffix = '') {
+  if (!el) return;
+  el.className = 'delta ' + (pct >= 0 ? 'up' : 'down');
+  el.textContent = (pct >= 0 ? '▲ ' : '▼ ') + fmtPct(pct) + suffix;
+}
+function setBadge(el, pct) {
+  if (!el) return;
+  el.className = 'badge ' + (pct >= 0 ? 'up' : 'down');
+  el.textContent = (pct >= 0 ? '▲ ' : '▼ ') + fmtPct(pct);
+}
+function nowHKT() {
+  return new Date().toLocaleString('zh-CN', {
+    timeZone: 'Asia/Hong_Kong', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).replace(/\//g, '-') + ' HKT';
+}
+
+/* ---------- Deribit instrument-name parser ---------- */
+const MONTHS = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+function parseExpiry(s) {
+  const m = s.match(/^(\d{1,2})([A-Z]{3})(\d{2})$/);
+  if (!m) return null;
+  return new Date(Date.UTC(2000 + parseInt(m[3]), MONTHS[m[2]], parseInt(m[1]), 8));
+}
+
+/* ---------- term structure ---------- */
+function computeTermStructure(options, spot) {
+  const byExpiry = new Map();
+  for (const o of options) {
+    if (!o.mark_iv || o.mark_iv <= 0) continue;
+    const parts = o.instrument_name.split('-');
+    if (parts.length !== 4) continue;
+    const expiry = parts[1];
+    const strike = parseFloat(parts[2]);
+    if (!Number.isFinite(strike)) continue;
+    if (!byExpiry.has(expiry)) byExpiry.set(expiry, new Map());
+    const m = byExpiry.get(expiry);
+    if (!m.has(strike)) m.set(strike, []);
+    m.get(strike).push(o.mark_iv);
+  }
+  const out = [];
+  for (const [exp, sm] of byExpiry) {
+    const strikes = [...sm.keys()];
+    const atm = strikes.reduce((a, b) => Math.abs(b - spot) < Math.abs(a - spot) ? b : a);
+    const ivs = sm.get(atm);
+    const iv = ivs.reduce((a, b) => a + b, 0) / ivs.length;
+    const expDate = parseExpiry(exp);
+    if (!expDate) continue;
+    const dte = (expDate.getTime() - Date.now()) / 86400000;
+    if (dte < 0.1) continue;
+    out.push({ exp, dte, strike: atm, iv });
+  }
+  return out.sort((a, b) => a.dte - b.dte);
+}
+
+function replaceChart(id, config) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  Chart.getChart(canvas)?.destroy();
+  return new Chart(canvas.getContext('2d'), config);
+}
+
+/* ================================================================
+   1) HERO PRICE CHART · Binance klines
+   ================================================================ */
+async function loadHeroChart() {
+  try {
+    const k = await B.klines('1d', 90);
+    const labels = k.map(r => {
+      const d = new Date(r[0]);
+      return `${d.getMonth()+1}/${d.getDate()}`;
+    });
+    const prices = k.map(r => parseFloat(r[4]));
+    const ctx = $('priceChart').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 320);
+    grad.addColorStop(0, 'rgba(247,147,26,0.28)');
+    grad.addColorStop(1, 'rgba(247,147,26,0)');
+    replaceChart('priceChart', {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: 'BTC/USD', data: prices,
+        borderColor: '#F7931A', backgroundColor: grad,
+        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0,
+        pointHoverRadius: 5, pointHoverBackgroundColor: '#F7931A',
+        pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#14171D', borderColor: '#20242D', borderWidth: 1,
+            titleColor: '#F4F6FA', bodyColor: '#C3C8D2', padding: 12,
+            callbacks: { label: c => 'BTC  $' + fmtPrice(c.parsed.y) },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#525C6B', maxTicksLimit: 8 } },
+          y: { position: 'right', grid: { color: '#181B22', drawTicks: false },
+               ticks: { color: '#7C8696', callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
+        },
+      },
+    });
+  } catch (e) { console.warn('[hero]', e.message); }
+}
+
+/* ================================================================
+   2) KPI · BTC price + Mcap + Dominance + Hero details
+   ================================================================ */
+async function loadKpiAndHero() {
+  const [idx, t24, perp, gl] = await Promise.allSettled([
+    D.index(), B.ticker(), D.perp(), CG.global(),
+  ]);
+
+  let price = null;
+  if (idx.status === 'fulfilled') price = idx.value.result.index_price;
+  else if (t24.status === 'fulfilled') price = parseFloat(t24.value.lastPrice);
+
+  if (t24.status === 'fulfilled') {
+    const t = t24.value;
+    const chgPct = parseFloat(t.priceChangePercent);
+    const chgAbs = parseFloat(t.priceChange);
+    if (price != null) {
+      $('heroPrice').textContent = fmtPrice(price);
+      $('kpiBtcPrice').textContent = '$' + fmtPrice(price);
+    }
+    setBadge($('heroChangePct'), chgPct);
+    $('heroChangeAbs').textContent = (chgAbs >= 0 ? '+' : '-') + '$' + fmtPrice(Math.abs(chgAbs)) + ' 24h';
+    $('heroHigh').textContent = '$' + fmtPrice(parseFloat(t.highPrice));
+    $('heroLow').textContent  = '$' + fmtPrice(parseFloat(t.lowPrice));
+    $('heroVol').textContent  = fmtUSD(parseFloat(t.quoteVolume));
+    setDelta($('kpiBtcDelta'), chgPct, ' · ' + (chgAbs >= 0 ? '+' : '-') + '$' + fmtPrice(Math.abs(chgAbs)));
+  }
+
+  if (perp.status === 'fulfilled') {
+    const p = perp.value.result;
+    const f = (p.current_funding ?? p.funding_8h ?? 0) * 100;
+    const fEl = $('heroFunding');
+    fEl.textContent = (f >= 0 ? '+' : '') + f.toFixed(4) + '%';
+    fEl.className = 'v ' + (f >= 0 ? 'up' : 'down');
+    if (p.mark_price && p.index_price) {
+      const basis = (p.mark_price - p.index_price) / p.index_price * 100;
+      const bEl = $('heroBasis');
+      bEl.textContent = (basis >= 0 ? '+' : '') + basis.toFixed(3) + '%';
+      bEl.className = 'v ' + (basis >= 0 ? 'up' : 'down');
+    }
+  }
+
+  if (gl.status === 'fulfilled') {
+    const g = gl.value.data;
+    $('kpiMcap').textContent = fmtUSD(g.total_market_cap.usd);
+    setDelta($('kpiMcapDelta'), g.market_cap_change_percentage_24h_usd);
+    $('kpiDom').textContent = g.market_cap_percentage.btc.toFixed(2) + '%';
+    $('kpiDomDelta').className = 'delta neutral';
+    $('kpiDomDelta').textContent = '占有率（实时）';
+  }
+
+  $('lastUpdated').textContent = nowHKT();
+}
+
+/* ================================================================
+   3) Fear & Greed · alternative.me
+   ================================================================ */
+async function loadFng() {
+  try {
+    const r = await ALT.fng(2);
+    const cur = r.data[0], prev = r.data[1];
+    const v = parseInt(cur.value), pv = parseInt(prev.value);
+    const labels = { 'Extreme Fear':'极度恐惧','Fear':'恐惧','Neutral':'中性','Greed':'贪婪','Extreme Greed':'极度贪婪' };
+    $('kpiFng').innerHTML = v + ` <span style="font-size:12px; color:var(--text-2); font-weight:500;">${labels[cur.value_classification] || cur.value_classification}</span>`;
+    const diff = v - pv;
+    const el = $('kpiFngDelta');
+    el.className = 'delta neutral';
+    el.textContent = `昨日 ${pv} · ${diff >= 0 ? '+' : ''}${diff}`;
+  } catch (e) { console.warn('[fng]', e.message); }
+}
+
+/* ================================================================
+   4) DVOL × Realized Volatility · Deribit
+   ================================================================ */
+let dvolDays = 90;
+async function loadDvolRv(days) {
+  if (days) dvolDays = days;
+  try {
+    const [dRes, rRes] = await Promise.allSettled([D.dvol(dvolDays), D.rv()]);
+    if (dRes.status !== 'fulfilled') throw new Error('DVOL fail');
+    const dvolPts = dRes.value.result.data.map(r => ({ x: r[0], y: r[4] }));
+    const rvPts = rRes.status === 'fulfilled'
+      ? rRes.value.result.map(r => ({ x: r[0], y: r[1] }))
+      : [];
+
+    const dvolLast = dvolPts.at(-1)?.y;
+    const rvLast = rvPts.at(-1)?.y;
+    $('dvolNow').textContent = dvolLast ? dvolLast.toFixed(1) + '%' : '—';
+    $('rvNow').textContent   = rvLast ? rvLast.toFixed(1) + '%' : '—';
+
+    if (dvolLast != null && rvLast != null) {
+      const spread = dvolLast - rvLast;
+      const sp = $('ivRvSpread');
+      sp.textContent = (spread >= 0 ? '+' : '') + spread.toFixed(1) + 'pp';
+      sp.style.color = spread >= 0 ? 'var(--up)' : 'var(--down)';
+      const sig = $('vrpSignal');
+      if (spread > 8)       { sig.textContent = '⬆ 高 VRP · 卖方溢价'; sig.style.color = 'var(--up)'; }
+      else if (spread > 3)  { sig.textContent = '⬆ 正常 VRP';            sig.style.color = 'var(--text-1)'; }
+      else if (spread > -3) { sig.textContent = '— 接近持平';             sig.style.color = 'var(--text-2)'; }
+      else                  { sig.textContent = '⬇ 实际波动率反超';        sig.style.color = 'var(--down)'; }
+    }
+
+    const ctx = $('dvolRvChart').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 280);
+    grad.addColorStop(0, 'rgba(198,255,61,0.22)');
+    grad.addColorStop(1, 'rgba(198,255,61,0)');
+    replaceChart('dvolRvChart', {
+      type: 'line',
+      data: { datasets: [
+        { label:'DVOL', data: dvolPts, borderColor:'#C6FF3D', backgroundColor:grad,
+          borderWidth:2, fill:true, tension:0.25, pointRadius:0 },
+        { label:'RV 30D', data: rvPts, borderColor:'#F7931A', backgroundColor:'transparent',
+          borderWidth:1.8, fill:false, tension:0.25, pointRadius:0, borderDash:[3,3] },
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false, parsing:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ display:true, position:'top', align:'end',
+                   labels:{ boxWidth:8, boxHeight:8, font:{size:11} } },
+          tooltip:{ backgroundColor:'#14171D', borderColor:'#20242D', borderWidth:1,
+            callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } },
+        },
+        scales:{
+          x:{ type:'time',
+              time:{ unit: dvolDays >= 90 ? 'month' : 'week' },
+              grid:{ display:false }, ticks:{ color:'#525C6B', maxTicksLimit:8 } },
+          y:{ position:'right', grid:{ color:'#181B22' },
+              ticks:{ color:'#7C8696', callback: v => v.toFixed(0) + '%' } },
+        },
+      },
+    });
+  } catch (e) {
+    console.warn('[dvol+rv]', e.message);
+    $('vrpSignal').textContent = '数据加载失败';
+  }
+}
+
+/* ================================================================
+   5) IV Term Structure · Deribit options
+   ================================================================ */
+async function loadIVTermStructure() {
+  try {
+    const [opts, idx] = await Promise.all([D.options(), D.index()]);
+    const spot = idx.result.index_price;
+    const ts = computeTermStructure(opts.result, spot);
+    if (!ts.length) throw new Error('empty');
+
+    const closest = target => ts.reduce((a, b) =>
+      Math.abs(b.dte - target) < Math.abs(a.dte - target) ? b : a);
+    const front = ts.find(p => p.dte <= 7) || ts[0];
+    const t30 = closest(30);
+    const t90 = closest(90);
+    const back = ts.filter(p => p.dte >= 180).pop() || ts.at(-1);
+
+    if (front) $('ivFront').textContent = front.iv.toFixed(1) + '%';
+    if (t30)   $('iv30').textContent    = t30.iv.toFixed(1) + '%';
+    if (t90)   $('iv90').textContent    = t90.iv.toFixed(1) + '%';
+    if (back)  $('ivBack').textContent  = back.iv.toFixed(1) + '%';
+
+    const shape = $('ivShape');
+    if (t30 && back && front) {
+      if (back.iv > t30.iv && t30.iv > front.iv) {
+        shape.textContent = 'Contango ↗ 正常';  shape.style.color = 'var(--up)';
+      } else if (back.iv < t30.iv && t30.iv < front.iv) {
+        shape.textContent = 'Backward ↘ 短期紧张'; shape.style.color = 'var(--down)';
+      } else if (front.iv > t30.iv) {
+        shape.textContent = 'Inverted 前端凸';   shape.style.color = 'var(--gold)';
+      } else {
+        shape.textContent = '混合 / 平坦';       shape.style.color = 'var(--text-1)';
+      }
+    }
+    $('ivTsUpdated').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+    const data = ts.map(p => ({ x: p.dte, y: p.iv }));
+    const ctx = $('ivTermChart').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 280);
+    grad.addColorStop(0, 'rgba(79,140,255,0.30)');
+    grad.addColorStop(1, 'rgba(79,140,255,0)');
+
+    replaceChart('ivTermChart', {
+      type: 'line',
+      data: { datasets: [{
+        label: 'ATM IV', data,
+        borderColor: '#4F8CFF', backgroundColor: grad,
+        borderWidth: 2.2, fill: true, tension: 0.35,
+        pointRadius: 4, pointBackgroundColor: '#4F8CFF',
+        pointBorderColor: '#0B0E11', pointBorderWidth: 1.5,
+        pointHoverRadius: 6,
+      }]},
+      options: {
+        responsive:true, maintainAspectRatio:false, parsing:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip:{ backgroundColor:'#14171D', borderColor:'#20242D', borderWidth:1,
+            callbacks:{
+              title: c => `${ts[c[0].dataIndex].exp}  (${c[0].parsed.x.toFixed(1)} DTE)`,
+              label: c => `ATM IV: ${c.parsed.y.toFixed(2)}%  ·  K=${ts[c.dataIndex].strike.toLocaleString()}`,
+            } },
+        },
+        scales:{
+          x:{ type:'linear',
+              title:{ display:true, text:'Days to Expiry', color:'#7C8696', font:{size:11} },
+              grid:{ color:'#181B22' },
+              ticks:{ color:'#7C8696', callback: v => v.toFixed(0) + 'D' } },
+          y:{ position:'right',
+              title:{ display:true, text:'ATM IV (%)', color:'#7C8696', font:{size:11} },
+              grid:{ color:'#181B22' },
+              ticks:{ color:'#7C8696', callback: v => v.toFixed(0) + '%' } },
+        },
+      },
+    });
+  } catch (e) {
+    console.warn('[iv-term]', e.message);
+    $('ivShape').textContent = '加载失败';
+  }
+}
+
+/* ================================================================
+   Range buttons for DVOL/RV chart
+   ================================================================ */
+function bindRangeButtons() {
+  document.querySelectorAll('#dvolRange button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#dvolRange button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadDvolRv(parseInt(btn.dataset.range, 10));
+    });
+  });
+}
+
+/* ================================================================
+   Load Chart.js time-scale adapter (date-fns)
+   ================================================================ */
+function loadAdapter() {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+/* ================================================================
+   Boot · 并行加载 + 定时刷新
+   ================================================================ */
+async function boot() {
+  try { await loadAdapter(); } catch (e) { console.warn('[adapter] failed'); }
+  bindRangeButtons();
+
+  // initial parallel
+  Promise.allSettled([
+    loadHeroChart(),
+    loadKpiAndHero(),
+    loadFng(),
+    loadDvolRv(90),
+    loadIVTermStructure(),
+  ]);
+
+  // refresh cadence
+  setInterval(loadKpiAndHero,       15 * 1000);   // 15s
+  setInterval(loadIVTermStructure,  30 * 1000);   // 30s
+  setInterval(loadDvolRv,           5 * 60 * 1000); // 5min (DVOL updates ~12h)
+  setInterval(loadHeroChart,        5 * 60 * 1000); // 5min
+  setInterval(loadFng,             60 * 60 * 1000); // 1h
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
 })();
 </script>
 </body>
