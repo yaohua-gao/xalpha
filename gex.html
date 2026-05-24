@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XAlpha · Gamma Exposure 查询</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  :root {
+    --bg-0: #07080B; --bg-1: #0E1014; --bg-2: #14171D; --bg-3: #1A1E26;
+    --line: #20242D;
+    --text-0: #F4F6FA; --text-1: #C3C8D2; --text-2: #7C8696; --text-3: #525C6B;
+    --brand: #C6FF3D; --brand-2: #9CE000;
+    --btc: #F7931A; --up: #22C55E; --down: #F43F5E;
+    --info: #4F8CFF; --gold: #E0B96F;
+    --call: #22C55E; --put: #F43F5E;
+    --radius: 14px; --radius-sm: 10px;
+    --font: "Inter", "SF Pro Display", "PingFang SC", "Helvetica Neue", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+    --shadow-card: 0 1px 0 rgba(255,255,255,0.02) inset, 0 1px 24px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg-0); color: var(--text-0);
+    font-family: var(--font); font-size: 14px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased; letter-spacing: -0.005em;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 28px;
+    padding: 14px 32px;
+    background: rgba(7,8,11,0.78);
+    backdrop-filter: saturate(140%) blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .logo { display:flex; align-items:center; gap:8px; font-weight:700; font-size:17px; letter-spacing:-0.02em; }
+  .logo .mark { width:26px; height:26px; border-radius:7px;
+    background: linear-gradient(135deg, var(--brand) 0%, #6FE000 100%);
+    color:#0B0E11; display:grid; place-items:center; font-weight:900; font-size:14px; }
+  .nav-links { display:flex; gap:6px; align-items:center; }
+  .nav-links a { padding:7px 12px; border-radius:8px; color:var(--text-1); font-size:13.5px; font-weight:500; transition:all .15s; }
+  .nav-links a:hover { background:var(--bg-2); color:var(--text-0); }
+  .nav-links a.active { color:var(--brand); }
+  .nav-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .btn { padding:8px 16px; border-radius:10px; font-weight:600; font-size:13px;
+    border:1px solid var(--line); background:var(--bg-1); color:var(--text-0); cursor:pointer; transition:all .15s; }
+  .btn:hover { background:var(--bg-2); }
+  .btn.primary { background: var(--brand); color:#0B0E11; border-color: var(--brand); }
+  .btn.primary:hover { background: var(--brand-2); }
+
+  main { padding: 28px 32px 64px; max-width: 1600px; margin: 0 auto; }
+  .page-header {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom: 22px; gap: 24px; flex-wrap: wrap;
+  }
+  .page-header h1 { margin:0; font-size:28px; font-weight:700; letter-spacing:-0.02em; }
+  .page-header .subtitle { color: var(--text-2); font-size:13.5px; margin-top:6px; }
+
+  /* Setup banner */
+  .setup-banner {
+    background: linear-gradient(90deg, rgba(247,147,26,0.10), rgba(247,147,26,0.04));
+    border: 1px solid rgba(247,147,26,0.35);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px;
+    display: none; gap: 14px; align-items: flex-start;
+  }
+  .setup-banner.show { display: flex; }
+  .setup-banner .icon { font-size: 20px; }
+  .setup-banner .body { flex: 1; }
+  .setup-banner h4 { margin: 0 0 6px; font-size: 14px; }
+  .setup-banner p { margin: 4px 0; color: var(--text-1); font-size: 12.5px; }
+  .setup-banner code { background: var(--bg-2); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: 12px; color: var(--brand); }
+
+  /* Ticker bar */
+  .ticker-bar {
+    background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 16px;
+  }
+  .ticker-input-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .ticker-input {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; color: var(--text-0); font-family: var(--mono); font-size: 14px;
+    width: 180px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ticker-input:focus { outline: none; border-color: var(--brand); }
+  .expiry-select {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 14px; color: var(--text-1); font-size: 13px; min-width: 220px;
+  }
+  .favorites { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
+  .fav-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .fav-group .label {
+    color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    padding-right: 6px; border-right: 1px solid var(--line); margin-right: 4px;
+  }
+  .chip {
+    padding: 4px 10px; border-radius: 6px; background: var(--bg-2); border: 1px solid var(--line);
+    color: var(--text-1); font-size: 12px; font-family: var(--mono); font-weight: 500;
+    cursor: pointer; transition: all .12s;
+  }
+  .chip:hover { background: var(--bg-3); color: var(--text-0); }
+  .chip.active { background: rgba(198,255,61,0.10); color: var(--brand); border-color: rgba(198,255,61,0.3); }
+  .chip.btc { color: var(--btc); }
+  .chip.etf { color: var(--info); }
+  .chip.idx { color: var(--gold); }
+
+  /* KPI strip */
+  .grid { display: grid; gap: 16px; }
+  .grid.kpi5 { grid-template-columns: repeat(5, 1fr); margin-bottom: 16px; }
+  .grid.main { grid-template-columns: 2fr 1fr; }
+  .grid.two { grid-template-columns: 1fr 1fr; }
+
+  .card {
+    background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; box-shadow: var(--shadow-card); position: relative; overflow: hidden;
+  }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .card-head h3 {
+    margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-head .tag {
+    font-size: 11px; color: var(--text-2);
+    padding: 3px 8px; border-radius: 6px; background: var(--bg-2); border: 1px solid var(--line);
+    font-weight: 500;
+  }
+  .kpi-card .label { font-size: 11px; color: var(--text-2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-card .value { font-size: 24px; font-weight: 700; margin-top: 6px; letter-spacing: -0.02em; font-feature-settings: "tnum"; }
+  .kpi-card .sub { color: var(--text-2); font-size: 11.5px; margin-top: 4px; font-feature-settings:"tnum"; }
+  .up { color: var(--up); } .down { color: var(--down); } .neutral { color: var(--text-2); }
+
+  .chart-container { position: relative; }
+  .chart-container.big { height: 420px; }
+  .chart-container.mid { height: 280px; }
+
+  table { width:100%; border-collapse: collapse; font-feature-settings:"tnum"; }
+  th, td { padding: 10px 8px; font-size: 13px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { color: var(--text-2); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 0; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-2); }
+
+  .lvl-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+    font-family: var(--mono);
+  }
+  .lvl-tag.call { background: rgba(34,197,94,0.10); color: var(--call); border: 1px solid rgba(34,197,94,0.3); }
+  .lvl-tag.put { background: rgba(244,63,94,0.10); color: var(--put); border: 1px solid rgba(244,63,94,0.3); }
+  .lvl-tag.flip { background: rgba(224,185,111,0.10); color: var(--gold); border: 1px solid rgba(224,185,111,0.3); }
+  .lvl-tag.spot { background: rgba(247,147,26,0.10); color: var(--btc); border: 1px solid rgba(247,147,26,0.3); }
+
+  .gamma-regime {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  }
+  .gamma-regime.positive { background: rgba(34,197,94,0.10); color: var(--up); border: 1px solid rgba(34,197,94,0.3); }
+  .gamma-regime.negative { background: rgba(244,63,94,0.10); color: var(--down); border: 1px solid rgba(244,63,94,0.3); }
+
+  .toggle-group { display:flex; gap:4px; }
+  .toggle-group button {
+    padding: 5px 11px; font-size: 11.5px; font-weight: 500;
+    background: transparent; border: 1px solid transparent; border-radius: 6px;
+    color: var(--text-2); cursor: pointer;
+  }
+  .toggle-group button.active { background: var(--bg-2); color: var(--text-0); border-color: var(--line); }
+
+  .loading {
+    text-align: center; color: var(--text-2); padding: 60px 20px; font-size: 13px;
+  }
+  .loading-spinner {
+    width: 24px; height: 24px; border: 2px solid var(--line);
+    border-top-color: var(--brand); border-radius: 50%;
+    display: inline-block; animation: spin 0.8s linear infinite;
+    margin-right: 10px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: rgba(244,63,94,0.05); border: 1px solid rgba(244,63,94,0.3);
+    border-radius: var(--radius-sm); padding: 14px; color: var(--down); font-size: 13px;
+    margin-top: 12px;
+  }
+
+  .footer-note { margin-top: 24px; color: var(--text-3); font-size: 11.5px; text-align: center; }
+
+  @media (max-width: 1100px) {
+    .grid.kpi5 { grid-template-columns: repeat(2, 1fr); }
+    .grid.main, .grid.two { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="logo"><span class="mark">X</span> XAlpha Research</a>
+  <div class="nav-links">
+    <a href="index.html">看板</a>
+    <a href="gex.html" class="active">GEX</a>
+    <a href="#">行情</a>
+    <a href="#">链上</a>
+    <a href="#">策略</a>
+  </div>
+  <div class="nav-right">
+    <button class="btn" id="refreshBtn">刷新</button>
+    <button class="btn primary" id="exportBtn">导出 CSV</button>
+  </div>
+</nav>
+
+<main>
+
+  <div class="page-header">
+    <div>
+      <h1>Gamma Exposure (GEX) 查询</h1>
+      <div class="subtitle">基于 Yahoo Finance 期权链 + Black-Scholes 自算 Gamma · 零注册 · 数据延迟 ≤ 15min</div>
+    </div>
+    <div style="font-size:12.5px; color:var(--text-2);">
+      <span class="gamma-regime" id="regimeTag">— 等待数据</span>
+    </div>
+  </div>
+
+  <!-- Error banner (shown only on data load failure) -->
+  <div class="setup-banner" id="setupBanner">
+    <div class="icon">⚠️</div>
+    <div class="body">
+      <h4 id="errorBannerTitle">数据加载失败</h4>
+      <p id="errorBannerMsg">Yahoo Finance 暂时不可达，或该 ticker 没有期权链。可尝试切换 ticker，或稍后重试。</p>
+      <p style="color:var(--text-3); font-size:11.5px;">Tip：本工具完全免费、零注册，部署到 Vercel 即可使用。</p>
+    </div>
+  </div>
+
+  <!-- Ticker selector -->
+  <div class="ticker-bar">
+    <div class="ticker-input-row">
+      <input type="text" class="ticker-input" id="tickerInput" placeholder="MSTR" value="MSTR" />
+      <select class="expiry-select" id="expirySelect" multiple size="1">
+        <option>加载到期日...</option>
+      </select>
+      <button class="btn primary" id="goBtn">查询 GEX</button>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-2); margin-left:8px;">
+        <input type="checkbox" id="indexConvention" />
+        指数约定 (SPX/SPY/QQQ 用)
+      </label>
+    </div>
+    <div class="favorites" id="favorites">
+      <!-- chips injected by JS -->
+    </div>
+  </div>
+
+  <!-- KPI strip -->
+  <div class="grid kpi5">
+    <div class="card kpi-card">
+      <div class="label">现价 (Spot)</div>
+      <div class="value" id="kpiSpot" style="color:var(--btc);">—</div>
+      <div class="sub" id="kpiSpotSub">—</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="label">Net GEX ($/1%)</div>
+      <div class="value" id="kpiNetGex">—</div>
+      <div class="sub" id="kpiNetGexSub">所有到期 · 所有行权价</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="label">Gamma Flip</div>
+      <div class="value" id="kpiFlip" style="color:var(--gold);">—</div>
+      <div class="sub" id="kpiFlipSub">净 GEX 翻转价位</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="label">Call Wall (阻力)</div>
+      <div class="value" id="kpiCallWall" style="color:var(--call);">—</div>
+      <div class="sub" id="kpiCallWallSub">—</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="label">Put Wall (支撑)</div>
+      <div class="value" id="kpiPutWall" style="color:var(--put);">—</div>
+      <div class="sub" id="kpiPutWallSub">—</div>
+    </div>
+  </div>
+
+  <!-- Main: GEX strike chart + Key levels -->
+  <div class="grid main" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-head">
+        <h3>GEX by Strike <span class="tag" id="strikeChartTag">—</span></h3>
+        <div class="toggle-group" id="strikeWindow">
+          <button data-w="0.10">±10%</button>
+          <button class="active" data-w="0.20">±20%</button>
+          <button data-w="0.40">±40%</button>
+          <button data-w="all">全部</button>
+        </div>
+      </div>
+      <div class="chart-container big">
+        <canvas id="gexStrike"></canvas>
+      </div>
+      <div style="margin-top:10px; color:var(--text-3); font-size:11px;">
+        每一格 = OI × Γ × 100 × Spot² × 0.01（$/1% 移动）· 绿色 = Call Gamma · 红色 = Put Gamma · 虚线 = 现价
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>关键 Gamma 位</h3>
+        <span class="tag" id="levelsTag">—</span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>类型</th><th>价位</th><th>距现价</th><th>强度</th></tr>
+        </thead>
+        <tbody id="levelsBody">
+          <tr><td colspan="4" style="color:var(--text-2); text-align:center; padding:30px 8px;">等待查询</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin: 20px 0 10px; font-size: 13px;">合约统计</h3>
+      <table>
+        <tbody id="statsBody">
+          <tr><td style="color:var(--text-2);">总 Call OI</td><td id="statCallOI">—</td></tr>
+          <tr><td style="color:var(--text-2);">总 Put OI</td><td id="statPutOI">—</td></tr>
+          <tr><td style="color:var(--text-2);">P/C OI Ratio</td><td id="statPCR">—</td></tr>
+          <tr><td style="color:var(--text-2);">ATM IV</td><td id="statATMIV">—</td></tr>
+          <tr><td style="color:var(--text-2);">合约总数</td><td id="statContracts">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cumulative GEX + Expiry distribution -->
+  <div class="grid two">
+    <div class="card">
+      <div class="card-head">
+        <h3>累积 GEX 曲线 <span class="tag">Flip 位定位</span></h3>
+      </div>
+      <div class="chart-container mid">
+        <canvas id="cumulativeGex"></canvas>
+      </div>
+      <div style="margin-top:10px; color:var(--text-3); font-size:11px;">
+        从最低行权价向上累加 · 曲线与零线交点即 Gamma Flip · 当前 Spot 在 Flip 上方 = 正 Gamma 区
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>到期日 OI 分布</h3>
+        <span class="tag">Call vs Put</span>
+      </div>
+      <div class="chart-container mid">
+        <canvas id="expiryDist"></canvas>
+      </div>
+      <div style="margin-top:10px; color:var(--text-3); font-size:11px;">
+        每个到期日的总 OI · 用于判断流动性集中在哪些到期，以及 P/C 偏向
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    数据源：<strong>Yahoo Finance</strong>（免费 · 无需注册 · ~15min 延迟）· Gamma 用 Black-Scholes 自算（r=4.2%）· 一阶 GEX 近似（SpotGamma 公开方法学）· 仅供研究参考
+  </div>
+
+</main>
+
+<script>
+'use strict';
+
+/* ====================== Tickers ====================== */
+const TICKERS = {
+  '自选 (Custom)': ['NOK','ALAB','MRVL','AAOI','CIFR','COHR','LITE','MSFT','AMZN','GOOG','MU','IREN','DRAM','HOOD','SNDK'],
+  'BTC 单票':     ['MSTR','COIN','MARA','RIOT','CLSK'],
+  'BTC ETF':      ['IBIT','FBTC','ARKB','BITB'],
+  '宽基 ETF':     ['SPY','QQQ','IWM','SPX'],
+  '大盘 OI':      ['NVDA','TSLA','AAPL','META'],
+};
+const INDEX_TICKERS = new Set(['SPY','QQQ','IWM','SPX','DIA']);
+
+/* ====================== State ====================== */
+const state = {
+  symbol: 'MSTR',
+  expirations: [],     // all available
+  selected: [],        // user-selected expirations
+  spot: null,
+  chains: {},          // exp -> options[]
+  indexConv: false,    // false: dealer short call/long put; true: dealer short put/long call
+  strikeWindow: 0.20,
+  loading: false,
+};
+
+/* ====================== Chart instances ====================== */
+let charts = { strike: null, cum: null, exp: null };
+
+/* ====================== Helpers ====================== */
+const $ = id => document.getElementById(id);
+
+function fmtUSD(n, dec = 0) {
+  if (n == null || !isFinite(n)) return '—';
+  const a = Math.abs(n);
+  if (a >= 1e9)  return (n < 0 ? '-' : '') + '$' + (a/1e9).toFixed(2)  + 'B';
+  if (a >= 1e6)  return (n < 0 ? '-' : '') + '$' + (a/1e6).toFixed(2)  + 'M';
+  if (a >= 1e3)  return (n < 0 ? '-' : '') + '$' + (a/1e3).toFixed(2)  + 'K';
+  return (n < 0 ? '-' : '') + '$' + a.toLocaleString(undefined, { maximumFractionDigits: dec });
+}
+function fmtNum(n, dec = 0) {
+  if (n == null || !isFinite(n)) return '—';
+  return n.toLocaleString(undefined, { maximumFractionDigits: dec });
+}
+function fmtPrice(n, dec = 2) {
+  if (n == null || !isFinite(n)) return '—';
+  return '$' + n.toFixed(dec);
+}
+function fmtPct(n, dec = 2) {
+  if (n == null || !isFinite(n)) return '—';
+  return (n >= 0 ? '+' : '') + n.toFixed(dec) + '%';
+}
+function daysBetween(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  return Math.round((d.getTime() - Date.now()) / 86400000);
+}
+
+/* ====================== API ====================== */
+async function yahoo(endpoint, params = {}) {
+  const url = new URL('/api/yahoo', location.origin);
+  url.searchParams.set('endpoint', endpoint);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+
+  const r = await fetch(url.toString());
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+
+/* ====================== Black-Scholes Gamma ====================== */
+// Γ = φ(d1) × exp(-qT) / (S × σ × √T)
+// 用 Yahoo 提供的 IV 反推每一份期权的 Gamma（per share，per $1 underlying move）
+const RISK_FREE_RATE = 0.042;   // 近似 1Y T-bill；可微调
+function bsGamma(S, K, T, sigma, r = RISK_FREE_RATE, q = 0) {
+  T = Math.max(T, 0.5 / 365);                 // floor: 半天，避免 0DTE 除零
+  if (sigma <= 0.001 || S <= 0 || K <= 0) return 0;
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(S / K) + (r - q + sigma * sigma / 2) * T) / (sigma * sqrtT);
+  const phi = Math.exp(-d1 * d1 / 2) / Math.sqrt(2 * Math.PI);
+  return phi * Math.exp(-q * T) / (S * sigma * sqrtT);
+}
+
+/* ====================== Favorites UI ====================== */
+function renderFavorites() {
+  const wrap = $('favorites');
+  wrap.innerHTML = '';
+  for (const [group, list] of Object.entries(TICKERS)) {
+    const g = document.createElement('div');
+    g.className = 'fav-group';
+    const lab = document.createElement('span');
+    lab.className = 'label';
+    lab.textContent = group;
+    g.appendChild(lab);
+
+    let cls = '';
+    if (group.startsWith('BTC 单')) cls = 'btc';
+    else if (group.includes('ETF') && !group.includes('BTC')) cls = 'idx';
+    else if (group.includes('BTC ETF')) cls = 'etf';
+
+    for (const t of list) {
+      const chip = document.createElement('span');
+      chip.className = 'chip ' + cls;
+      chip.textContent = t;
+      chip.dataset.symbol = t;
+      if (t === state.symbol) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        state.symbol = t;
+        $('tickerInput').value = t;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        $('indexConvention').checked = INDEX_TICKERS.has(t);
+        state.indexConv = INDEX_TICKERS.has(t);
+        loadAll();
+      });
+      g.appendChild(chip);
+    }
+    wrap.appendChild(g);
+  }
+}
+
+/* ====================== Core: load quote + expirations + chain (Yahoo) ====================== */
+async function loadQuote(symbol) {
+  const d = await yahoo('quote', { symbol });
+  const q = d.quoteResponse?.result?.[0];
+  if (!q || q.regularMarketPrice == null) return null;
+  return {
+    last:      q.regularMarketPrice,
+    prev:      q.regularMarketPreviousClose,
+    change:    q.regularMarketChange,
+    changePct: q.regularMarketChangePercent,
+    volume:    q.regularMarketVolume,
+    name:      q.longName || q.shortName || q.symbol,
+    divYield:  q.trailingAnnualDividendYield || 0,
+  };
+}
+
+// 首次调用拉回所有到期日；返回 YYYY-MM-DD 字符串数组
+async function loadExpirations(symbol) {
+  const d = await yahoo('options', { symbol });
+  const result = d.optionChain?.result?.[0];
+  if (!result) return [];
+  const exps = result.expirationDates || [];
+  return exps.map(ts => new Date(ts * 1000).toISOString().slice(0, 10));
+}
+
+// 加载某一到期日的期权链；Yahoo 用 unix-seconds 时间戳定位到期
+async function loadChain(symbol, expiration) {
+  const ts = Math.floor(new Date(expiration + 'T00:00:00Z').getTime() / 1000);
+  const d = await yahoo('options', { symbol, expiration: ts });
+  const result = d.optionChain?.result?.[0];
+  const grp = result?.options?.[0];
+  if (!grp) return [];
+  // 归一化为统一形状，附 option_type 和 expiration
+  const calls = (grp.calls || []).map(c => ({ ...c, option_type: 'call', expiration }));
+  const puts  = (grp.puts  || []).map(p => ({ ...p, option_type: 'put',  expiration }));
+  return [...calls, ...puts];
+}
+
+/* ====================== GEX computation ====================== */
+function computeStrikeAggregates(chains, spot, indexConv, divYield = 0) {
+  // chains: { exp(YYYY-MM-DD) -> options[] }
+  // 跨所选到期日按 strike 聚合
+  const byStrike = new Map();
+  let totalCallOI = 0, totalPutOI = 0;
+  let allOptions = [];
+
+  for (const exp of Object.keys(chains)) {
+    // 期权在到期日 16:00 ET ≈ 21:00 UTC 行权；这里用 21:00 UTC 估 T（年化）
+    const expMs = new Date(exp + 'T21:00:00Z').getTime();
+    const T = Math.max((expMs - Date.now()) / (365 * 86400000), 0.5 / 365);
+
+    for (const opt of chains[exp]) {
+      const oi = opt.openInterest || 0;
+      const iv = opt.impliedVolatility;
+      if (oi <= 0 || !iv || iv <= 0) continue;
+      const K = opt.strike;
+      // BS Gamma per share（Yahoo 不直接给 Gamma，自算）
+      const g = bsGamma(spot, K, T, iv, RISK_FREE_RATE, divYield);
+      if (!isFinite(g) || g <= 0) continue;
+
+      if (!byStrike.has(K)) byStrike.set(K, { callGex:0, putGex:0, callOI:0, putOI:0, callIVs:[], putIVs:[] });
+      const e = byStrike.get(K);
+      const gex = g * oi * 100 * spot * spot * 0.01; // $/1% notional move
+
+      if (opt.option_type === 'call') {
+        e.callGex += gex; e.callOI += oi; e.callIVs.push(iv);
+        totalCallOI += oi;
+      } else if (opt.option_type === 'put') {
+        e.putGex += gex; e.putOI += oi; e.putIVs.push(iv);
+        totalPutOI += oi;
+      }
+      allOptions.push(opt);
+    }
+  }
+
+  // Sort by strike
+  const sorted = [...byStrike.entries()].sort((a, b) => a[0] - b[0]);
+  const rows = sorted.map(([K, e]) => {
+    // Net at strike depending on convention
+    // Single-stock convention: dealer short calls (negative gamma), long puts (positive gamma)
+    //   netGex(K) = -callGex + putGex
+    // Index convention: dealer short puts (negative gamma), long calls (positive gamma)
+    //   netGex(K) = +callGex - putGex
+    const netGex = indexConv ? (e.callGex - e.putGex) : (e.putGex - e.callGex);
+    return {
+      strike: K,
+      callGex: e.callGex,
+      putGex: e.putGex,
+      netGex,
+      callOI: e.callOI,
+      putOI: e.putOI,
+    };
+  });
+
+  // Find Call Wall (max callGex), Put Wall (max putGex)
+  let callWall = null, putWall = null;
+  for (const r of rows) {
+    if (r.callOI > 0 && (!callWall || r.callGex > callWall.callGex)) callWall = r;
+    if (r.putOI > 0 && (!putWall || r.putGex > putWall.putGex)) putWall = r;
+  }
+
+  // Net total GEX
+  const netTotal = rows.reduce((a, r) => a + r.netGex, 0);
+
+  // Gamma Flip: cumulative net GEX from lowest strike upward → find zero crossing strike
+  let cum = 0;
+  const cumPoints = rows.map(r => {
+    cum += r.netGex;
+    return { strike: r.strike, cum };
+  });
+  // Find sign change
+  let flip = null;
+  for (let i = 1; i < cumPoints.length; i++) {
+    const prev = cumPoints[i-1], cur = cumPoints[i];
+    if (prev.cum === 0) { flip = prev.strike; break; }
+    if ((prev.cum < 0 && cur.cum >= 0) || (prev.cum > 0 && cur.cum <= 0)) {
+      // Linear interpolation between strikes
+      const t = -prev.cum / (cur.cum - prev.cum);
+      flip = prev.strike + t * (cur.strike - prev.strike);
+      break;
+    }
+  }
+
+  // ATM IV: average IV of strikes closest to spot
+  const closestStrike = rows.reduce((a, r) =>
+    Math.abs(r.strike - spot) < Math.abs(a.strike - spot) ? r : a, rows[0] || { strike: spot });
+  const atmRow = byStrike.get(closestStrike.strike);
+  let atmIV = null;
+  if (atmRow) {
+    const ivs = [...atmRow.callIVs, ...atmRow.putIVs];
+    if (ivs.length) atmIV = ivs.reduce((a, b) => a + b, 0) / ivs.length * 100;
+  }
+
+  return {
+    rows, cumPoints, callWall, putWall, flip,
+    netTotal, totalCallOI, totalPutOI, atmIV,
+    contractCount: allOptions.length,
+  };
+}
+
+/* ====================== Expiry OI aggregation ====================== */
+function computeExpiryDist(chains) {
+  const out = [];
+  for (const exp of Object.keys(chains).sort()) {
+    let callOI = 0, putOI = 0;
+    for (const opt of chains[exp]) {
+      const oi = opt.openInterest || 0;
+      if (opt.option_type === 'call') callOI += oi;
+      else if (opt.option_type === 'put') putOI += oi;
+    }
+    out.push({ exp, callOI, putOI, dte: daysBetween(exp) });
+  }
+  return out;
+}
+
+/* ====================== Rendering ====================== */
+function destroyChart(name) {
+  if (charts[name]) { charts[name].destroy(); charts[name] = null; }
+}
+
+function filterByWindow(rows, spot, win) {
+  if (win === 'all' || !spot) return rows;
+  const w = parseFloat(win);
+  return rows.filter(r => Math.abs(r.strike - spot) / spot <= w);
+}
+
+function renderStrikeChart(agg, spot) {
+  destroyChart('strike');
+  const filtered = filterByWindow(agg.rows, spot, state.strikeWindow);
+  if (!filtered.length) return;
+
+  const labels = filtered.map(r => r.strike);
+  const calls = filtered.map(r => r.callGex);
+  const puts = filtered.map(r => -r.putGex); // plot puts as negative
+
+  const ctx = $('gexStrike').getContext('2d');
+  charts.strike = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Call Γ Exposure', data: calls, backgroundColor:'rgba(34,197,94,0.8)', borderColor:'rgba(34,197,94,1)', borderWidth: 0.5, stack:'gex' },
+        { label:'Put Γ Exposure',  data: puts,  backgroundColor:'rgba(244,63,94,0.8)', borderColor:'rgba(244,63,94,1)',  borderWidth: 0.5, stack:'gex' },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', align: 'end',
+                  labels: { boxWidth:8, boxHeight:8, font:{size:11} } },
+        tooltip: {
+          backgroundColor:'#14171D', borderColor:'#20242D', borderWidth:1,
+          callbacks: {
+            title: c => 'Strike: $' + c[0].label,
+            label: c => `${c.dataset.label}: ${fmtUSD(Math.abs(c.parsed.y))}`,
+          },
+        },
+        annotation: {
+          annotations: {
+            spot: {
+              type: 'line', xMin: nearestIndex(labels, spot), xMax: nearestIndex(labels, spot),
+              borderColor: '#F7931A', borderWidth: 1.5, borderDash: [5, 5],
+              label: { display: true, content: `Spot $${spot.toFixed(2)}`, position: 'start',
+                color: '#F7931A', backgroundColor: 'rgba(247,147,26,0.10)',
+                padding: { top: 3, bottom: 3, left: 6, right: 6 }, font: { size: 11, weight: 'bold' }},
+            },
+            ...(agg.callWall ? { callWall: {
+              type: 'line', xMin: nearestIndex(labels, agg.callWall.strike), xMax: nearestIndex(labels, agg.callWall.strike),
+              borderColor: 'rgba(34,197,94,0.5)', borderWidth: 1, borderDash: [3, 3],
+              label: { display: true, content: 'Call Wall', position: 'end',
+                color: '#22C55E', backgroundColor: 'rgba(34,197,94,0.10)',
+                padding: { top: 2, bottom: 2, left: 5, right: 5 }, font: { size: 10 }}
+            }} : {}),
+            ...(agg.putWall ? { putWall: {
+              type: 'line', xMin: nearestIndex(labels, agg.putWall.strike), xMax: nearestIndex(labels, agg.putWall.strike),
+              borderColor: 'rgba(244,63,94,0.5)', borderWidth: 1, borderDash: [3, 3],
+              label: { display: true, content: 'Put Wall', position: 'end',
+                color: '#F43F5E', backgroundColor: 'rgba(244,63,94,0.10)',
+                padding: { top: 2, bottom: 2, left: 5, right: 5 }, font: { size: 10 }}
+            }} : {}),
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#7C8696', maxRotation: 0,
+              callback: function(v) { const lbl = this.getLabelForValue(v); return '$' + lbl; } } },
+        y: { position: 'right', grid: { color: '#181B22' },
+              ticks: { color: '#7C8696', callback: v => fmtUSD(v) } },
+      },
+    },
+  });
+}
+
+function nearestIndex(arr, target) {
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i = 0; i < arr.length; i++) {
+    const d = Math.abs(arr[i] - target);
+    if (d < bestDiff) { bestDiff = d; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function renderCumulative(agg, spot) {
+  destroyChart('cum');
+  const filtered = filterByWindow(agg.rows, spot, state.strikeWindow);
+  if (!filtered.length) return;
+
+  // Re-compute cumulative within window
+  let cum = 0;
+  const pts = filtered.map(r => { cum += r.netGex; return { x: r.strike, y: cum }; });
+
+  const ctx = $('cumulativeGex').getContext('2d');
+  charts.cum = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Cumulative Net GEX',
+        data: pts,
+        borderColor: '#C6FF3D',
+        backgroundColor: (c) => {
+          const g = c.chart.ctx.createLinearGradient(0,0,0,280);
+          g.addColorStop(0, 'rgba(198,255,61,0.20)');
+          g.addColorStop(1, 'rgba(198,255,61,0)');
+          return g;
+        },
+        borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0, pointHoverRadius: 5,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, parsing: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor:'#14171D', borderColor:'#20242D', borderWidth:1,
+          callbacks: {
+            title: c => 'Strike: $' + c[0].parsed.x.toFixed(2),
+            label: c => 'Cum GEX: ' + fmtUSD(c.parsed.y),
+          } },
+        annotation: {
+          annotations: {
+            zero: { type:'line', yMin:0, yMax:0, borderColor:'#7C8696', borderWidth:1, borderDash:[2,2] },
+            spot: { type:'line', xMin: spot, xMax: spot, borderColor:'#F7931A', borderWidth:1.5, borderDash:[5,5],
+                    label: { display:true, content:'Spot', position:'start', color:'#F7931A',
+                             backgroundColor:'rgba(247,147,26,0.10)', font:{size:10}}},
+            ...(agg.flip ? { flip: { type:'line', xMin: agg.flip, xMax: agg.flip,
+                              borderColor:'#E0B96F', borderWidth:1.5, borderDash:[3,3],
+                              label: { display:true, content:`Flip $${agg.flip.toFixed(2)}`, position:'end',
+                                       color:'#E0B96F', backgroundColor:'rgba(224,185,111,0.10)', font:{size:10}}}} : {}),
+          },
+        },
+      },
+      scales: {
+        x: { type:'linear', grid:{color:'#181B22'},
+             ticks:{ color:'#7C8696', callback: v => '$' + v.toFixed(0) } },
+        y: { position:'right', grid:{color:'#181B22'},
+             ticks:{ color:'#7C8696', callback: v => fmtUSD(v) } },
+      },
+    },
+  });
+}
+
+function renderExpiryDist(expData) {
+  destroyChart('exp');
+  if (!expData.length) return;
+  const labels = expData.map(e => e.exp + ` (${e.dte}D)`);
+  const ctx = $('expiryDist').getContext('2d');
+  charts.exp = new Chart(ctx, {
+    type: 'bar',
+    data: { labels,
+      datasets: [
+        { label:'Call OI', data: expData.map(e => e.callOI),
+          backgroundColor:'rgba(34,197,94,0.7)', stack:'oi', borderRadius:3 },
+        { label:'Put OI', data: expData.map(e => -e.putOI),
+          backgroundColor:'rgba(244,63,94,0.7)', stack:'oi', borderRadius:3 },
+      ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display:true, position:'top', align:'end',
+                  labels:{ boxWidth:8, boxHeight:8, font:{size:11} } },
+        tooltip: { backgroundColor:'#14171D', borderColor:'#20242D', borderWidth:1,
+          callbacks: { label: c => `${c.dataset.label}: ${fmtNum(Math.abs(c.parsed.x))}` } },
+      },
+      scales: {
+        x: { grid:{ color:'#181B22' }, ticks:{ color:'#7C8696', callback: v => fmtNum(Math.abs(v)) } },
+        y: { grid:{ display:false }, ticks:{ color:'#7C8696', font:{size:11} } },
+      },
+    },
+  });
+}
+
+function renderLevels(agg, spot) {
+  const body = $('levelsBody');
+  body.innerHTML = '';
+  const items = [];
+  items.push(['Spot', 'spot', spot, 0, null]);
+  if (agg.callWall) items.push(['Call Wall (阻力)', 'call', agg.callWall.strike, (agg.callWall.strike - spot) / spot * 100, agg.callWall.callGex]);
+  if (agg.putWall)  items.push(['Put Wall (支撑)',  'put',  agg.putWall.strike,  (agg.putWall.strike - spot) / spot * 100, agg.putWall.putGex]);
+  if (agg.flip)     items.push(['Gamma Flip',       'flip', agg.flip,            (agg.flip - spot) / spot * 100, null]);
+
+  for (const [name, cls, price, distPct, strength] of items) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="lvl-tag ${cls}">${name}</span></td>
+      <td><strong>${fmtPrice(price)}</strong></td>
+      <td class="${distPct >= 0 ? 'up' : 'down'}">${fmtPct(distPct, 1)}</td>
+      <td>${strength == null ? '—' : fmtUSD(strength)}</td>
+    `;
+    body.appendChild(tr);
+  }
+}
+
+function renderKpis(agg, spot, quote) {
+  $('kpiSpot').textContent = fmtPrice(spot);
+  if (quote) {
+    const pct = quote.changePct;
+    $('kpiSpotSub').innerHTML = `<span class="${pct >= 0 ? 'up' : 'down'}">${fmtPct(pct)}</span> · ${quote.name || ''}`;
+  }
+  $('kpiNetGex').textContent = fmtUSD(agg.netTotal);
+  $('kpiNetGex').className = 'value ' + (agg.netTotal >= 0 ? 'up' : 'down');
+  $('kpiNetGexSub').textContent = (state.indexConv ? '指数约定' : '单票约定') + ` · ${state.selected.length} 个到期`;
+
+  $('kpiFlip').textContent = agg.flip ? fmtPrice(agg.flip) : '—';
+  if (agg.flip) {
+    const distPct = (agg.flip - spot) / spot * 100;
+    $('kpiFlipSub').innerHTML = `距现价 <span class="${distPct >= 0 ? 'up' : 'down'}">${fmtPct(distPct, 1)}</span>`;
+  } else {
+    $('kpiFlipSub').textContent = '未找到翻转点（同号区间）';
+  }
+
+  $('kpiCallWall').textContent = agg.callWall ? fmtPrice(agg.callWall.strike) : '—';
+  if (agg.callWall) {
+    const d = (agg.callWall.strike - spot) / spot * 100;
+    $('kpiCallWallSub').innerHTML = `OI ${fmtNum(agg.callWall.callOI)} · <span class="${d >= 0 ? 'up' : 'down'}">${fmtPct(d, 1)}</span>`;
+  }
+
+  $('kpiPutWall').textContent = agg.putWall ? fmtPrice(agg.putWall.strike) : '—';
+  if (agg.putWall) {
+    const d = (agg.putWall.strike - spot) / spot * 100;
+    $('kpiPutWallSub').innerHTML = `OI ${fmtNum(agg.putWall.putOI)} · <span class="${d >= 0 ? 'up' : 'down'}">${fmtPct(d, 1)}</span>`;
+  }
+
+  // Regime tag
+  const tag = $('regimeTag');
+  if (agg.netTotal >= 0) {
+    tag.className = 'gamma-regime positive';
+    tag.textContent = '● 正 Gamma 区 · 波动率受抑制';
+  } else {
+    tag.className = 'gamma-regime negative';
+    tag.textContent = '● 负 Gamma 区 · 波动率放大';
+  }
+
+  // Stats
+  $('statCallOI').textContent = fmtNum(agg.totalCallOI);
+  $('statPutOI').textContent = fmtNum(agg.totalPutOI);
+  $('statPCR').textContent = agg.totalCallOI > 0 ? (agg.totalPutOI / agg.totalCallOI).toFixed(2) : '—';
+  $('statATMIV').textContent = agg.atmIV ? agg.atmIV.toFixed(1) + '%' : '—';
+  $('statContracts').textContent = fmtNum(agg.contractCount);
+
+  $('strikeChartTag').textContent = state.symbol + ' · ' + state.selected.length + ' exp';
+  $('levelsTag').textContent = state.indexConv ? 'Index conv.' : 'Single-name conv.';
+}
+
+/* ====================== Master load ====================== */
+async function loadAll() {
+  state.symbol = $('tickerInput').value.toUpperCase().trim();
+  if (!state.symbol) return;
+
+  state.loading = true;
+  $('regimeTag').textContent = '加载中...';
+  $('regimeTag').className = 'gamma-regime';
+
+  try {
+    // 1. quote + expirations in parallel
+    const [quote, exps] = await Promise.all([
+      loadQuote(state.symbol),
+      loadExpirations(state.symbol),
+    ]);
+
+    if (!quote || !quote.last) throw new Error('未找到 ' + state.symbol + ' 行情');
+    state.spot = quote.last;
+    state.expirations = exps;
+
+    // 2. Populate expiry selector; default to first 3
+    const sel = $('expirySelect');
+    sel.innerHTML = '';
+    sel.size = Math.min(6, exps.length);
+    state.selected = exps.slice(0, 3);
+    for (const e of exps) {
+      const opt = document.createElement('option');
+      opt.value = e;
+      opt.textContent = `${e}  ·  ${daysBetween(e)}D`;
+      if (state.selected.includes(e)) opt.selected = true;
+      sel.appendChild(opt);
+    }
+
+    // 3. Fetch chains in parallel for selected expirations
+    const chainResults = await Promise.all(
+      state.selected.map(exp => loadChain(state.symbol, exp).then(opts => [exp, opts]))
+    );
+    state.chains = Object.fromEntries(chainResults);
+
+    // 4. Compute & render（把股息率传进 BS 公式）
+    state.divYield = quote.divYield || 0;
+    const agg = computeStrikeAggregates(state.chains, state.spot, state.indexConv, state.divYield);
+    renderKpis(agg, state.spot, quote);
+    renderLevels(agg, state.spot);
+    renderStrikeChart(agg, state.spot);
+    renderCumulative(agg, state.spot);
+    renderExpiryDist(computeExpiryDist(state.chains));
+    state._lastAgg = agg;
+    state._lastQuote = quote;
+    $('setupBanner').classList.remove('show');
+  } catch (e) {
+    console.error(e);
+    $('regimeTag').className = 'gamma-regime negative';
+    $('regimeTag').textContent = '❌ ' + (e.message || '加载失败');
+    $('errorBannerMsg').textContent = `加载 ${state.symbol} 失败：${e.message || e}`;
+    $('setupBanner').classList.add('show');
+  } finally {
+    state.loading = false;
+  }
+}
+
+/* ====================== Re-render only (when toggles change) ====================== */
+function rerenderCharts() {
+  if (!state._lastAgg || !state.spot) return;
+  const indexConvAgg = computeStrikeAggregates(state.chains, state.spot, state.indexConv, state.divYield || 0);
+  state._lastAgg = indexConvAgg;
+  renderKpis(indexConvAgg, state.spot, state._lastQuote);
+  renderLevels(indexConvAgg, state.spot);
+  renderStrikeChart(indexConvAgg, state.spot);
+  renderCumulative(indexConvAgg, state.spot);
+}
+
+/* ====================== Expiry multi-select changes ====================== */
+async function onExpiryChange() {
+  const sel = $('expirySelect');
+  state.selected = [...sel.selectedOptions].map(o => o.value);
+  if (!state.selected.length) return;
+
+  // Fetch any new chains
+  const newExps = state.selected.filter(e => !state.chains[e]);
+  if (newExps.length) {
+    const results = await Promise.all(newExps.map(exp => loadChain(state.symbol, exp).then(opts => [exp, opts])));
+    Object.assign(state.chains, Object.fromEntries(results));
+  }
+  // Drop chains not needed
+  const needed = new Set(state.selected);
+  for (const k of Object.keys(state.chains)) if (!needed.has(k)) delete state.chains[k];
+  rerenderCharts();
+  renderExpiryDist(computeExpiryDist(state.chains));
+}
+
+/* ====================== CSV export ====================== */
+function exportCSV() {
+  if (!state._lastAgg) return;
+  const rows = state._lastAgg.rows;
+  const header = ['strike','callOI','putOI','callGex','putGex','netGex'];
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    lines.push([r.strike, r.callOI, r.putOI, r.callGex.toFixed(2), r.putGex.toFixed(2), r.netGex.toFixed(2)].join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `gex_${state.symbol}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ====================== Init ====================== */
+function init() {
+  // Register Chart.js plugin
+  if (window['chartjs-plugin-annotation']) Chart.register(window['chartjs-plugin-annotation']);
+
+  Chart.defaults.font.family = '"Inter", "PingFang SC", system-ui, sans-serif';
+  Chart.defaults.color = '#7C8696';
+  Chart.defaults.borderColor = '#20242D';
+
+  renderFavorites();
+
+  $('goBtn').addEventListener('click', loadAll);
+  $('refreshBtn').addEventListener('click', loadAll);
+  $('exportBtn').addEventListener('click', exportCSV);
+  $('tickerInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadAll(); });
+  $('expirySelect').addEventListener('change', onExpiryChange);
+  $('indexConvention').addEventListener('change', e => { state.indexConv = e.target.checked; rerenderCharts(); });
+
+  document.querySelectorAll('#strikeWindow button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#strikeWindow button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const w = btn.dataset.w;
+      state.strikeWindow = w === 'all' ? 'all' : parseFloat(w);
+      if (state._lastAgg) {
+        renderStrikeChart(state._lastAgg, state.spot);
+        renderCumulative(state._lastAgg, state.spot);
+      }
+    });
+  });
+
+  loadAll();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>
