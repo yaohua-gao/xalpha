@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DDH 规范 · Gamma 管理 & Delta Hedge</title>
+<style>
+  :root {
+    --bd: #e5e7eb;
+    --bd2: #eef0f3;
+    --txt: #111827;
+    --muted: #6b7280;
+    --bg: #ffffff;
+    --row-bg: #fafbfc;
+    --sel: #6366f1;
+    --sel-bg: #eef2ff;
+    --sel-bd: #c7d2fe;
+    --hover: #f5f6f8;
+    --green: #22c55e;
+    --green-bg: #f0fdf4;
+    --green-bd: #bbf7d0;
+    --yellow: #eab308;
+    --yellow-bg: #fefce8;
+    --yellow-bd: #fde68a;
+    --orange: #f59e0b;
+    --orange-bg: #fff7ed;
+    --orange-bd: #fed7aa;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --red-bd: #fecaca;
+    --indigo: #6366f1;
+    --blue: #3b82f6;
+    --emerald: #10b981;
+    --rose: #f43f5e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f6f7f9; color: var(--txt); font: 14px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  .wrap { max-width: 1100px; margin: 24px auto 80px; padding: 0 20px; }
+
+  /* Header */
+  .header { margin-bottom: 24px; }
+  .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .header .meta { font-size: 13px; color: var(--muted); }
+  .header .meta .badge { display: inline-block; padding: 2px 8px; background: var(--sel-bg); color: #3730a3; border-radius: 4px; font-size: 11px; margin-left: 8px; font-weight: 500; }
+
+  /* Section card */
+  .section { background: #fff; border: 1px solid var(--bd); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .section h2 { margin: 0 0 14px 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .section h2 .num { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 11px; font-weight: 700; align-items: center; justify-content: center; }
+  .section h3 { margin: 18px 0 10px 0; font-size: 13.5px; font-weight: 600; color: #374151; }
+  .section h3:first-of-type { margin-top: 4px; }
+
+  /* Definition cards */
+  .defs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .def { padding: 12px 14px; background: var(--row-bg); border-radius: 8px; border: 1px solid var(--bd2); }
+  .def .sym { font-size: 14px; font-weight: 600; color: var(--indigo); margin-bottom: 4px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .def .desc { font-size: 12.5px; color: #374151; line-height: 1.45; }
+  .def .unit { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+  /* Gamma tier cards */
+  .tiers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tier { padding: 14px; border-radius: 10px; border: 1px solid; transition: transform .15s; }
+  .tier:hover { transform: translateY(-1px); }
+  .tier.green { background: var(--green-bg); border-color: var(--green-bd); }
+  .tier.yellow { background: var(--yellow-bg); border-color: var(--yellow-bd); }
+  .tier.orange { background: var(--orange-bg); border-color: var(--orange-bd); }
+  .tier.red { background: var(--red-bg); border-color: var(--red-bd); }
+  .tier .head { display: flex; align-items: center; gap: 6px; }
+  .tier .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .tier.green .dot { background: var(--green); }
+  .tier.yellow .dot { background: var(--yellow); }
+  .tier.orange .dot { background: var(--orange); }
+  .tier.red .dot { background: var(--red); }
+  .tier .label { font-size: 13px; font-weight: 600; }
+  .tier .range { font-size: 17px; font-weight: 700; font-family: ui-monospace, "SF Mono", Menlo, monospace; margin: 8px 0 6px; letter-spacing: -0.01em; }
+  .tier .action { font-size: 12px; color: #4b5563; line-height: 1.5; }
+
+  /* Gamma scale bar */
+  .scale { margin: 16px 0 6px; position: relative; height: 28px; }
+  .scale .track { position: absolute; left: 0; right: 0; top: 11px; height: 6px; border-radius: 3px; overflow: hidden; display: flex; }
+  .scale .track > div { height: 100%; }
+  .scale .track .s1 { flex: 25; background: var(--green); }
+  .scale .track .s2 { flex: 5; background: var(--yellow); }
+  .scale .track .s3 { flex: 20; background: var(--orange); }
+  .scale .track .s4 { flex: 25; background: var(--red); }
+  .scale .ticks { position: absolute; left: 0; right: 0; top: 0; display: flex; }
+  .scale .ticks div { font-size: 11px; color: var(--muted); flex-shrink: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .scale .ticks .t0 { width: 0; }
+  .scale .ticks .t25 { position: absolute; left: 33.3%; transform: translateX(-50%); }
+  .scale .ticks .t30 { position: absolute; left: 40%; transform: translateX(-50%); }
+  .scale .ticks .t50 { position: absolute; left: 66.6%; transform: translateX(-50%); }
+  .scale .ticks .t75 { position: absolute; right: 0; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table th, table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--bd2); }
+  table th { background: #fafbfc; font-weight: 600; color: #374151; font-size: 12.5px; }
+  table tbody tr:hover { background: var(--hover); }
+  table td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+
+  /* Calculator */
+  .calc { background: #f8f9fb; border: 1px solid var(--bd); border-radius: 10px; padding: 16px 18px; }
+  .picker-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .picker-row .picker-label { font-size: 12px; color: var(--muted); min-width: 50px; }
+  .picker { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pick { padding: 6px 12px; background: #fff; border: 1px solid var(--bd); border-radius: 7px; cursor: pointer; font-size: 12px; transition: all .12s; user-select: none; }
+  .pick:hover { border-color: var(--sel); background: var(--hover); }
+  .pick.on { background: var(--sel); color: #fff; border-color: var(--sel); box-shadow: 0 1px 2px rgba(99,102,241,.3); }
+  .pick.v1.on { background: var(--green); border-color: var(--green); }
+  .pick.v2.on { background: var(--emerald); border-color: var(--emerald); }
+  .pick.v3.on { background: var(--indigo); border-color: var(--indigo); }
+  .pick.v4.on { background: #8b5cf6; border-color: #8b5cf6; }
+  .pick.v5.on { background: var(--rose); border-color: var(--rose); }
+  .pick.v6.on { background: #dc2626; border-color: #dc2626; }
+  .pick.dv1.on { background: var(--blue); border-color: var(--blue); }
+  .pick.dv2.on { background: var(--indigo); border-color: var(--indigo); }
+  .pick.dv3.on { background: var(--orange); border-color: var(--orange); }
+  .pick.dv4.on { background: var(--red); border-color: var(--red); }
+
+  .result { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bd); }
+  .res-card { padding: 12px 14px; background: #fff; border: 1px solid var(--bd); border-radius: 8px; }
+  .res-card .lbl { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .res-card .val { font-size: 18px; font-weight: 700; font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--txt); letter-spacing: -0.02em; }
+  .res-card .calc-detail { font-size: 11px; color: #9ca3af; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  /* Priority flow */
+  .flow { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 4px; }
+  .flow-step { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--row-bg); border-radius: 8px; border-left: 3px solid var(--indigo); font-size: 13px; }
+  .flow-step .step-num { width: 22px; height: 22px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .flow-arrow { text-align: center; color: var(--muted); font-size: 14px; line-height: 1; }
+
+  /* Callout */
+  .callout { background: #fffbeb; border: 1px solid #fde68a; border-left: 3px solid var(--orange); padding: 10px 14px; border-radius: 6px; font-size: 12.5px; color: #78350f; margin: 12px 0; line-height: 1.55; }
+  .callout.info { background: #eff6ff; border-color: #bfdbfe; border-left-color: var(--blue); color: #1e3a8a; }
+  .callout.formula { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+
+  /* Rules list */
+  .rules { padding-left: 0; list-style: none; margin: 0; }
+  .rules li { position: relative; padding: 5px 0 5px 22px; font-size: 13px; color: #374151; line-height: 1.55; }
+  .rules li::before { content: ""; position: absolute; left: 6px; top: 13px; width: 6px; height: 6px; background: var(--indigo); border-radius: 50%; }
+  .rules li strong { color: var(--txt); }
+
+  /* State machine ASCII block */
+  .state-machine { background: #fafbfc; border: 1px solid var(--bd2); border-radius: 8px; padding: 12px 14px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: #374151; line-height: 1.6; overflow-x: auto; margin: 8px 0; white-space: pre; }
+
+  /* Status pills (Active / Standby) */
+  .status { display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600; }
+  .status.active { background: #dcfce7; color: #15803d; }
+  .status.standby { background: #f1f5f9; color: #475569; }
+
+  /* Mode pills (Standard / Defensive / Emergency) */
+  .mode { display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600; }
+  .mode.standard { background: #e0e7ff; color: #3730a3; }
+  .mode.defensive { background: #ffedd5; color: #9a3412; }
+  .mode.emergency { background: #fee2e2; color: #991b1b; }
+
+  /* Trigger dimension card */
+  .trigger-dim { margin: 12px 0; padding: 12px 14px; background: var(--row-bg); border: 1px solid var(--bd2); border-radius: 8px; }
+  .trigger-dim-title { font-size: 12.5px; font-weight: 600; color: var(--indigo); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .trigger-dim-title::before { content: ""; width: 4px; height: 14px; background: var(--indigo); border-radius: 2px; }
+  .trigger-dim table { font-size: 12.5px; }
+  .trigger-dim table th { background: transparent; padding: 6px 8px; font-size: 12px; }
+  .trigger-dim table td { padding: 6px 8px; }
+
+  /* Trigger level cells */
+  .med-cell { background: #fef3c7 !important; color: #92400e; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; text-align: center; font-weight: 600; }
+  .high-cell { background: #fecaca !important; color: #991b1b; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; text-align: center; font-weight: 600; }
+
+  /* Mobile */
+  @media (max-width: 720px) {
+    .defs, .tiers { grid-template-columns: 1fr 1fr; }
+    .result { grid-template-columns: 1fr; }
+    .section { padding: 16px 18px; }
+    .header h1 { font-size: 18px; }
+  }
+
+  /* ===== Unified site navigation (dark · 与 index.html / gex.html 一致) ===== */
+  .site-nav {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 28px;
+    padding: 14px 32px;
+    background: rgba(7,8,11,0.95);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    backdrop-filter: saturate(140%) blur(14px);
+    border-bottom: 1px solid #20242D;
+    color: #F4F6FA;
+    font-family: "Inter", "SF Pro Display", "PingFang SC", system-ui, sans-serif;
+    font-size: 13.5px;
+  }
+  .site-nav a { color: inherit; text-decoration: none; }
+  .site-nav .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 16px; letter-spacing: -0.02em;
+  }
+  .site-nav .logo .mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, #C6FF3D 0%, #6FE000 100%);
+    color: #0B0E11; display: grid; place-items: center;
+    font-weight: 900; font-size: 14px;
+  }
+  .site-nav .nav-links { display: flex; gap: 4px; align-items: center; }
+  .site-nav .nav-links a {
+    padding: 7px 12px; border-radius: 8px;
+    color: #C3C8D2; font-weight: 500;
+    transition: background .15s, color .15s;
+  }
+  .site-nav .nav-links a:hover { background: #14171D; color: #F4F6FA; }
+  .site-nav .nav-links a.active { color: #C6FF3D; }
+  .site-nav .nav-right { margin-left: auto; color: #7C8696; font-size: 12px; }
+  @media (max-width: 720px) {
+    .site-nav { padding: 10px 16px; gap: 14px; flex-wrap: wrap; }
+    .site-nav .nav-right { display: none; }
+  }
+  /* 把 wrap 上方留白调小，让 nav 紧贴顶部更舒服 */
+  body { background: #f6f7f9; }
+  .wrap { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<!-- Unified site nav -->
+<nav class="site-nav">
+  <a href="index.html" class="logo"><span class="mark">X</span> XAlpha Research</a>
+  <div class="nav-links">
+    <a href="index.html">看板</a>
+    <a href="gex.html">GEX</a>
+    <a href="#">行情</a>
+    <a href="#">链上</a>
+    <a href="ddh.html" class="active">策略</a>
+  </div>
+  <div class="nav-right">DDH · BTC 期权双卖组合</div>
+</nav>
+
+<div class="wrap">
+
+<!-- Header -->
+<div class="header">
+  <h1>BTC 期权双卖组合 — Gamma 管理 & Delta Hedge 规范</h1>
+  <div class="meta">
+    简洁版规范 · Γ 四档管理 + Δ 6 场景 × DVOL 4 档调整
+    <span class="badge">v0.4 draft</span>
+  </div>
+</div>
+
+<!-- §0 度量约定 -->
+<div class="section">
+  <h2><span class="num">0</span>度量约定</h2>
+  <div class="defs">
+    <div class="def">
+      <div class="sym">Δ_net</div>
+      <div class="desc">期权 + perp / futures / spot 等 hedge 后的净 delta</div>
+      <div class="unit">单位：BTC · 跨账户聚合</div>
+    </div>
+    <div class="def">
+      <div class="sym">Γ_p</div>
+      <div class="desc">币价每变动 $1000，Δ_net 的变动值</div>
+      <div class="unit">单位：BTC / $1000 spot · 跨账户聚合</div>
+    </div>
+    <div class="def">
+      <div class="sym">DVOL</div>
+      <div class="desc">Deribit 30 天波动率指数</div>
+      <div class="unit">单位：% (年化)</div>
+    </div>
+  </div>
+</div>
+
+<!-- §1 DDH 启动机制 -->
+<div class="section">
+  <h2><span class="num">1</span>DDH 启动机制</h2>
+
+  <p style="margin: 0 0 14px 0; color: var(--muted); font-size: 13px;">
+    DDH 默认 <strong>Standby</strong>（仅 emergency 兜底）。CIO 主观或市场客观触发后进入 <strong>Active</strong>。
+  </p>
+
+  <h3>1.1 状态机</h3>
+  <div class="state-machine">[Standby]  ──┬── CIO toggle ON                  ──→  [Active · Standard]
+             ├── 单一中级市场触发                ──→  [Active · Standard]
+             ├── 多重中级 (≥2) 或 单高级触发      ──→  [Active · Defensive]
+             └── 多重高级 (≥2) 触发              ──→  [Active · Emergency 手工]
+
+[Active]  ──── CIO OFF + 所有市场触发解除 + 1h cool-down ────→  [Standby]</div>
+
+  <h3>1.2 A 类 · CIO 主观触发</h3>
+  <table>
+    <thead><tr><th>CIO 观点（来自策略会）</th><th>DDH 状态</th><th>配置</th></tr></thead>
+    <tbody>
+      <tr><td>强烈看多 / 强烈看跌</td><td><span class="status active">Active</span></td><td>Standard + directional bias</td></tr>
+      <tr><td>强烈震荡</td><td><span class="status active">Active</span></td><td>Defensive（紧 trigger）</td></tr>
+      <tr><td>温和方向</td><td><span class="status active">Active</span></td><td>Standard</td></tr>
+      <tr><td>温和震荡</td><td><span class="status standby">Standby</span></td><td>仅 emergency 兜底</td></tr>
+      <tr><td>中性 / 无观点</td><td><span class="status standby">Standby</span></td><td>仅 emergency 兜底</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3 B 类 · 市场客观触发（5 个维度）</h3>
+
+  <div class="trigger-dim">
+    <div class="trigger-dim-title">维度 1 · 价格幅度（spot 跳动）</div>
+    <table>
+      <thead><tr><th>Window</th><th>中级</th><th>高级</th></tr></thead>
+      <tbody>
+        <tr><td>1h |Δ%|</td><td class="med-cell">> 5%</td><td class="high-cell">> 8%</td></tr>
+        <tr><td>4h |Δ%|</td><td class="med-cell">> 7%</td><td class="high-cell">> 10%</td></tr>
+        <tr><td>24h |Δ%|</td><td class="med-cell">> 10%</td><td class="high-cell">> 15%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="trigger-dim">
+    <div class="trigger-dim-title">维度 2 · 价格速率（移动速度）</div>
+    <table>
+      <thead><tr><th>信号</th><th>中级</th><th>高级</th></tr></thead>
+      <tbody>
+        <tr><td>1h ATR / 20d ATR</td><td class="med-cell">> 1.5×</td><td class="high-cell">> 2.5×</td></tr>
+        <tr><td>5min 连续同向幅度 > 1.5%</td><td class="med-cell">触发中级</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size: 11.5px; color: var(--muted); margin-top: 6px; padding-left: 4px;">
+      速率比绝对幅度更早预警："5min 连续上涨 1.5% 且未停" 是 gamma 风险信号
+    </div>
+  </div>
+
+  <div class="trigger-dim">
+    <div class="trigger-dim-title">维度 3 · 波动率（IV / DVOL）</div>
+    <table>
+      <thead><tr><th>信号</th><th>中级</th><th>高级</th></tr></thead>
+      <tbody>
+        <tr><td>DVOL 绝对水平</td><td class="med-cell">50 – 60</td><td class="high-cell">> 60</td></tr>
+        <tr><td>DVOL 24h 变化</td><td class="med-cell">> +30%</td><td class="high-cell">> +50%</td></tr>
+        <tr><td>DVOL 1h 跳变</td><td class="med-cell">> 5pt</td><td class="high-cell">> 10pt</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="trigger-dim">
+    <div class="trigger-dim-title">维度 4 · VRP 风险溢价 = DVOL − RV(7d)</div>
+    <table>
+      <thead><tr><th>信号</th><th>中级</th><th>高级</th></tr></thead>
+      <tbody>
+        <tr><td>VRP 当前值</td><td class="med-cell">< 5pt</td><td class="high-cell">< 0pt</td></tr>
+        <tr><td>VRP 5d 变化</td><td class="med-cell">收缩 > 5pt</td><td class="high-cell">收缩 > 10pt</td></tr>
+      </tbody>
+    </table>
+    <div class="callout info" style="margin: 8px 0 0 0; font-size: 12px;">
+      <strong>VRP 是 Vega 卖方最直接的盈利指标</strong>。正常 VRP ≈ 5-15pt（IV 高于 RV，市场为不确定性付费）；负 VRP → RV 已超 IV，gamma 损失放大。
+    </div>
+  </div>
+
+  <div class="trigger-dim">
+    <div class="trigger-dim-title">维度 5 · 流动性 / 结构信号</div>
+    <table>
+      <thead><tr><th>信号</th><th>中级</th><th>高级</th></tr></thead>
+      <tbody>
+        <tr><td>Binance funding 8h |f|</td><td class="med-cell">> 0.05%</td><td class="high-cell">> 0.10%</td></tr>
+        <tr><td>全网清算 / 小时</td><td class="med-cell">> $200M</td><td class="high-cell">> $500M</td></tr>
+        <tr><td>Deribit / Binance basis</td><td class="med-cell">> ±20bp</td><td class="high-cell">> ±50bp</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.4 触发组合 → DDH 模式映射</h3>
+  <table>
+    <thead><tr><th>触发情况</th><th>DDH 模式</th><th>配置</th></tr></thead>
+    <tbody>
+      <tr><td>CIO Active + 无市场触发</td><td><span class="mode standard">Standard</span></td><td>§3 6 场景标准参数</td></tr>
+      <tr><td>任一市场中级单独触发</td><td><span class="mode standard">Standard</span></td><td>同上</td></tr>
+      <tr><td>多重中级 (≥2) 或 单一高级</td><td><span class="mode defensive">Defensive</span></td><td>Trigger × 0.7、半自动以上</td></tr>
+      <tr><td>多重高级 (≥2)</td><td><span class="mode emergency">Emergency</span></td><td>强制手工、PM/风控通知</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.5 Standby 模式的 emergency 兜底</h3>
+  <div class="callout">
+    DDH OFF ≠ 不 hedge。以下条件<strong>强制升级到 Active</strong>：
+    <ul class="rules" style="margin-top: 8px; margin-bottom: 0;">
+      <li><strong>Γ_p ≥ 0.30</strong>（Orange）→ 强制减 Γ（见 §2.2）</li>
+      <li><strong>Δ_net 漂移 > ±10% NAV</strong>（约 ±2000 BTC @ 当前 NAV 20000 BTC）</li>
+      <li><strong>跳空 1h |Δ%| > 5%</strong>（维度 1 中级触发）→ 立即升级 Active</li>
+      <li><strong>任一账户 margin utilization > 80%</strong> → 进入 Active 评估</li>
+    </ul>
+  </div>
+
+  <h3>1.6 冷却规则</h3>
+  <ul class="rules">
+    <li><strong>Standby → Active</strong>：立即触发，无 cool-down（避免延迟）</li>
+    <li><strong>Active → Standby</strong>：所有触发解除 + 持续 <strong>1h</strong> 后才回 Standby</li>
+    <li><strong>Active mode 切换</strong>（如 Standard → Defensive）：升级立即；降级有 30min 冷却</li>
+  </ul>
+</div>
+
+<!-- §2 Gamma 管理 -->
+<div class="section">
+  <h2><span class="num">2</span>Gamma 管理</h2>
+
+  <h3>2.1 三色档位</h3>
+  <div class="tiers">
+    <div class="tier green">
+      <div class="head"><span class="dot"></span><span class="label">🟢 Green · 正常</span></div>
+      <div class="range">&lt; 0.25</div>
+      <div class="action">正常运行，按 §3 做 Δ hedge</div>
+    </div>
+    <div class="tier yellow">
+      <div class="head"><span class="dot"></span><span class="label">🟡 Yellow · 监控</span></div>
+      <div class="range">0.25 – 0.30</div>
+      <div class="action">监控，暂停新开期权仓</div>
+    </div>
+    <div class="tier orange">
+      <div class="head"><span class="dot"></span><span class="label">🟠 Orange · 减仓</span></div>
+      <div class="range">0.30 – 0.50</div>
+      <div class="action">买回最大 Γ leg，回到 &lt; 0.25</div>
+    </div>
+    <div class="tier red">
+      <div class="head"><span class="dot"></span><span class="label">🔴 Red · 紧急</span></div>
+      <div class="range">≥ 0.50</div>
+      <div class="action">紧急减仓 + 暂停自动 + 通知 PM/风控</div>
+    </div>
+  </div>
+
+  <div class="scale">
+    <div class="track">
+      <div class="s1"></div>
+      <div class="s2"></div>
+      <div class="s3"></div>
+      <div class="s4"></div>
+    </div>
+    <div class="ticks">
+      <div class="t0">0</div>
+      <div class="t25">0.25</div>
+      <div class="t30">0.30</div>
+      <div class="t50">0.50</div>
+      <div class="t75">0.75</div>
+    </div>
+  </div>
+
+  <h3>2.2 减仓规则（Orange / Red 触发时）</h3>
+  <ul class="rules">
+    <li>按 <strong>单 leg Γ</strong> 排序（短到期天然 Γ 高，自动排在前面），取最大者</li>
+    <li>大单 &gt; 200 BTC notional 走 <strong>Deribit RFQ / Block</strong>，避免 order book 冲击</li>
+    <li>单次减仓 ≤ 该 leg 持仓的 <strong>40%</strong>（防冲击 IV）</li>
+    <li>减仓后立即重算 Γ_p；未达 &lt; 0.25 继续循环</li>
+    <li>Red 状态执行加速版：拆单更小、PM / 风控 电话 + IM 双通道通知</li>
+  </ul>
+
+  <div class="callout">
+    <strong>安全区目标统一为 Γ_p &lt; 0.25</strong>（Green 区），而不是回到触发阈值 0.30 边缘 —— 留出 buffer 防止立即再触发。
+  </div>
+</div>
+
+<!-- §3 Delta Hedge -->
+<div class="section">
+  <h2><span class="num">3</span>Delta Hedge</h2>
+
+  <h3>参数计算器 · 选择场景 + DVOL，自动算最终值</h3>
+  <div class="calc">
+    <div class="picker-row">
+      <div class="picker-label">场景</div>
+      <div class="picker" id="scenarios">
+        <div class="pick v1" data-i="0">强烈看多</div>
+        <div class="pick v2" data-i="1">温和看多</div>
+        <div class="pick v3" data-i="2">温和震荡</div>
+        <div class="pick v4" data-i="3">强烈震荡</div>
+        <div class="pick v5" data-i="4">温和看跌</div>
+        <div class="pick v6" data-i="5">强烈看跌</div>
+      </div>
+    </div>
+    <div class="picker-row">
+      <div class="picker-label">DVOL</div>
+      <div class="picker" id="dvols">
+        <div class="pick dv1" data-i="0">🟦 Low (&lt;40)</div>
+        <div class="pick dv2" data-i="1">⬜ Mid (40–50)</div>
+        <div class="pick dv3" data-i="2">🟧 High (50–60)</div>
+        <div class="pick dv4" data-i="3">🟥 Extreme (&gt;60)</div>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="res-card">
+        <div class="lbl">Δ Trigger</div>
+        <div class="val" id="trigger-val">—</div>
+        <div class="calc-detail" id="trigger-calc"></div>
+      </div>
+      <div class="res-card">
+        <div class="lbl">Δ Target</div>
+        <div class="val" id="target-val">—</div>
+        <div class="calc-detail" id="target-calc"></div>
+      </div>
+      <div class="res-card">
+        <div class="lbl">Max Hedge / 次</div>
+        <div class="val" id="hedge-val">—</div>
+        <div class="calc-detail" id="hedge-detail"></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>3.1 6 场景基准参数</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>场景</th>
+        <th>Δ Trigger (BTC)</th>
+        <th>Δ Target (BTC)</th>
+        <th>中心</th>
+        <th>Max Hedge / 次</th>
+      </tr>
+    </thead>
+    <tbody id="scenario-table"></tbody>
+  </table>
+
+  <div class="callout info">
+    <strong>设计逻辑</strong>：方向 → Target 中心偏移（强烈 ±750 / 温和 ±450 / 震荡 0）；强烈 vs 温和 → 中心更偏 + <strong>反向 trigger 边界收紧</strong>（强烈看多不允许净空、强烈看跌不允许净多）；温和震荡 range 最宽省 theta，强烈震荡 range 最窄严控 gamma；看多/看跌镜像对称。
+  </div>
+
+  <h3>3.2 DVOL 调整系数</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Regime</th>
+        <th>DVOL 区间</th>
+        <th>Trigger ×</th>
+        <th>Target ×</th>
+      </tr>
+    </thead>
+    <tbody id="dvol-table"></tbody>
+  </table>
+
+  <h3>3.3 最终触发计算</h3>
+  <div class="callout info formula">
+    Trigger_final&nbsp;=&nbsp;Base_trigger × DVOL_mult<br>
+    Target_final&nbsp;&nbsp;=&nbsp;Base_target&nbsp;&nbsp;× DVOL_mult
+  </div>
+
+  <h3>3.4 触发动作</h3>
+  <ul class="rules">
+    <li>Δ_net <strong>超出 Trigger 范围</strong> → 触发 hedge</li>
+    <li>默认 hedge venue：<strong>Binance perp</strong>（流动性 + 现金保证金）</li>
+    <li>目标 Δ_net 拉回 <strong>Target 中点</strong></li>
+    <li>拆单：每 clip ≤ Max Hedge/次 ÷ 3</li>
+    <li>成交后立即重算 Δ_net，确认落入 Target 区间</li>
+  </ul>
+
+  <h3>3.5 执行模式映射</h3>
+  <table>
+    <thead><tr><th>场景 + 条件</th><th>执行模式</th></tr></thead>
+    <tbody>
+      <tr><td>温和场景 + DVOL Low/Mid + Γ_p Green</td><td><strong style="color:var(--green)">自动</strong></td></tr>
+      <tr><td>强烈方向 / 强烈震荡 / DVOL High</td><td><strong style="color:var(--orange)">半自动</strong>（系统建议 → 人工确认）</td></tr>
+      <tr><td>DVOL Extreme / 关键事件锁定</td><td><strong style="color:var(--red)">全手工</strong>（Trader 自决）</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- §4 优先级与互锁 -->
+<div class="section">
+  <h2><span class="num">4</span>优先级与互锁</h2>
+
+  <div class="callout">
+    <strong>Γ 优先于 Δ</strong>：触发对冲前先检查 Γ_p；若已 🟠 Orange 或 🔴 Red，<strong>先减 Γ 再做 Δ hedge</strong>。高 Γ 时频繁 Δ hedge 会"追着市场跑"，亏损放大。
+  </div>
+
+  <h3>Γ 与 Δ 同时触发时的顺序</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div><strong>检测</strong>：Δ_net 超界 <span class="mono">+</span> Γ_p 🟠/🔴 同时成立</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div><strong>先减 Γ</strong>：执行 §2.2 减仓规则，直至 Γ_p &lt; 0.25</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div><strong>重算 Δ_net</strong>：减仓中 Δ_net 会变化，重新评估</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div><strong>若仍超界 → Δ hedge</strong>：执行 §3.4 触发动作</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const SCENARIOS = [
+  { name: '强烈看多', trigger: [100, 1500],   target: [500, 1000],   maxHedge: 800, center: 750 },
+  { name: '温和看多', trigger: [-200, 1200],  target: [200, 700],    maxHedge: 600, center: 450 },
+  { name: '温和震荡', trigger: [-1000, 1000], target: [-400, 400],   maxHedge: 600, center: 0 },
+  { name: '强烈震荡', trigger: [-500, 500],   target: [-200, 200],   maxHedge: 400, center: 0 },
+  { name: '温和看跌', trigger: [-1200, 200],  target: [-700, -200],  maxHedge: 600, center: -450 },
+  { name: '强烈看跌', trigger: [-1500, -100], target: [-1000, -500], maxHedge: 800, center: -750 },
+];
+
+const REGIMES = [
+  { tag: '🟦 Low',     range: '< 40',     triggerMult: 0.85, targetMult: 0.85 },
+  { tag: '⬜ Mid',     range: '40 – 50',  triggerMult: 1.00, targetMult: 1.00 },
+  { tag: '🟧 High',    range: '50 – 60',  triggerMult: 1.30, targetMult: 1.20 },
+  { tag: '🟥 Extreme', range: '> 60',     triggerMult: 1.50, targetMult: 1.30 },
+];
+
+let si = 2; // default 温和震荡
+let di = 1; // default Mid
+
+function fmt(n) {
+  const r = Math.round(n);
+  return r > 0 ? `+${r}` : `${r}`;
+}
+
+function fmtRange(arr) {
+  return `[${fmt(arr[0])}, ${fmt(arr[1])}]`;
+}
+
+function update() {
+  const s = SCENARIOS[si];
+  const d = REGIMES[di];
+
+  const trig = [s.trigger[0] * d.triggerMult, s.trigger[1] * d.triggerMult];
+  const tgt = [s.target[0] * d.targetMult, s.target[1] * d.targetMult];
+
+  document.getElementById('trigger-val').textContent = fmtRange(trig);
+  document.getElementById('trigger-calc').textContent = `${fmtRange(s.trigger)} × ${d.triggerMult.toFixed(2)}`;
+
+  document.getElementById('target-val').textContent = fmtRange(tgt);
+  document.getElementById('target-calc').textContent = `${fmtRange(s.target)} × ${d.targetMult.toFixed(2)}`;
+
+  document.getElementById('hedge-val').textContent = `${s.maxHedge} BTC`;
+  document.getElementById('hedge-detail').textContent = `${s.name} 基准`;
+
+  document.querySelectorAll('#scenarios .pick').forEach((el, i) => {
+    el.classList.toggle('on', i === si);
+  });
+  document.querySelectorAll('#dvols .pick').forEach((el, i) => {
+    el.classList.toggle('on', i === di);
+  });
+}
+
+document.querySelectorAll('#scenarios .pick').forEach((el) => {
+  el.addEventListener('click', () => { si = +el.dataset.i; update(); });
+});
+document.querySelectorAll('#dvols .pick').forEach((el) => {
+  el.addEventListener('click', () => { di = +el.dataset.i; update(); });
+});
+
+// Render tables
+const stbody = document.getElementById('scenario-table');
+SCENARIOS.forEach((s) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${s.name}</td><td class="mono">${fmtRange(s.trigger)}</td><td class="mono">${fmtRange(s.target)}</td><td class="mono">${fmt(s.center)}</td><td>${s.maxHedge} BTC</td>`;
+  stbody.appendChild(tr);
+});
+
+const dtbody = document.getElementById('dvol-table');
+REGIMES.forEach((d) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${d.tag}</td><td class="mono">${d.range}</td><td class="mono">${d.triggerMult.toFixed(2)}</td><td class="mono">${d.targetMult.toFixed(2)}</td>`;
+  dtbody.appendChild(tr);
+});
+
+update();
+</script>
+</body>
+</html>
