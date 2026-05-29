@@ -2,8 +2,8 @@
 // Vercel Serverless Function · Unified Options Data Proxy
 // 自动路由策略（按优先级）：
 //   1. TRADIER_TOKEN     → Tradier（Greeks 最准，需要 brokerage 审核）
-//   2. MARKETDATA_TOKEN  → MarketData.app（注意：免费层 IP 锁，不适合 Vercel）
-//   3. POLYGON_API_KEY   → Polygon.io（serverless 友好，免费 5 req/min）
+//   2. POLYGON_API_KEY   → Polygon.io（serverless 友好 · 推荐用这个）
+//   3. MARKETDATA_TOKEN  → MarketData.app（⚠️ 免费层 IP 锁，仅作 fallback）
 //   都没有 → NO_PROVIDER_TOKEN 错误
 //
 // 输出格式（统一规范，前端无需关心 provider）：
@@ -17,11 +17,11 @@
 // ============================================================
 
 const TRADIER_TOKEN = process.env.TRADIER_TOKEN;
-const MARKETDATA_TOKEN = process.env.MARKETDATA_TOKEN;
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
+const MARKETDATA_TOKEN = process.env.MARKETDATA_TOKEN;
 const PROVIDER = TRADIER_TOKEN ? 'tradier'
+              : POLYGON_API_KEY ? 'polygon'      // Polygon 优于 MarketData（serverless 兼容）
               : MARKETDATA_TOKEN ? 'marketdata'
-              : POLYGON_API_KEY ? 'polygon'
               : null;
 
 // 指数类（部分 provider 用专门端点）
