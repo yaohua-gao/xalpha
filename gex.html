@@ -161,6 +161,7 @@
   }
   .gamma-regime.positive { background: rgba(34,197,94,0.10); color: var(--up); border: 1px solid rgba(34,197,94,0.3); }
   .gamma-regime.negative { background: rgba(244,63,94,0.10); color: var(--down); border: 1px solid rgba(244,63,94,0.3); }
+  .gamma-regime.pending  { background: rgba(224,185,111,0.10); color: var(--gold); border: 1px solid rgba(224,185,111,0.3); }
 
   .toggle-group { display:flex; gap:4px; }
   .toggle-group button {
@@ -217,7 +218,7 @@
   <div class="page-header">
     <div>
       <h1>Gamma Exposure (GEX) 查询</h1>
-      <div class="subtitle">基于 MarketData.app 期权链 + Greeks · 未来可平滑切换 Tradier · 数据延迟 ≤ 15min</div>
+      <div class="subtitle">支持 Polygon / MarketData / Tradier 多 provider 自动切换 · Greeks 优先用 provider，缺失时本地 BS 反推</div>
     </div>
     <div style="font-size:12.5px; color:var(--text-2);">
       <span class="gamma-regime" id="regimeTag">— 等待数据</span>
@@ -228,11 +229,11 @@
   <div class="setup-banner" id="setupBanner">
     <div class="icon">⚙️</div>
     <div class="body">
-      <h4 id="errorBannerTitle">配置 MarketData.app API Token（30 秒）</h4>
-      <p>1. 去 <a href="https://www.marketdata.app/" target="_blank" style="color:var(--brand);">marketdata.app</a> 注册（只需邮箱+密码）→ Dashboard → API Tokens → 复制 token</p>
-      <p>2. Vercel 项目 → <strong>Settings → Environment Variables</strong> 添加 <code>MARKETDATA_TOKEN = 你的token</code>（三个 Environment 都勾上）</p>
-      <p>3. <strong>Deployments → 最新一条 → ⋮ → Redeploy</strong> 让环境变量生效</p>
-      <p style="color:var(--text-3); font-size:11.5px; margin-top:8px;" id="errorBannerMsg">将来注册好 Tradier 后，只需要在 Vercel 加 <code>TRADIER_TOKEN</code> 即可自动切换数据源，无需改任何代码 ✨</p>
+      <h4 id="errorBannerTitle">配置数据源 API Key（30 秒，三选一）</h4>
+      <p><strong>🏆 推荐：Polygon.io</strong> · <a href="https://polygon.io/dashboard/signup" target="_blank" style="color:var(--brand);">polygon.io/dashboard/signup</a> 邮箱+密码注册（无审核） → Keys 页 → 复制 API Key → Vercel 加 <code>POLYGON_API_KEY</code></p>
+      <p style="color:var(--text-2); font-size:12px;">备选：MarketData.app（⚠️ 免费层 IP 锁不适合 Vercel）→ <code>MARKETDATA_TOKEN</code>；Tradier（需 brokerage 审核）→ <code>TRADIER_TOKEN</code></p>
+      <p>📝 配置步骤：Vercel 项目 → <strong>Settings → Environment Variables</strong> 加变量 → 三个 Environment 都勾 → Save → <strong>Deployments → 最新一条 → ⋮ → Redeploy</strong></p>
+      <p style="color:var(--text-3); font-size:11.5px; margin-top:8px;" id="errorBannerMsg">优先级：Tradier &gt; MarketData &gt; Polygon。同时配置多个会自动选最优 ✨</p>
     </div>
   </div>
 
@@ -925,18 +926,52 @@ async function loadAll() {
     state._lastQuote = quote;
     $('setupBanner').classList.remove('show');
     if (state.provider) {
-      const provName = state.provider === 'tradier' ? 'Tradier (Sandbox)' : 'MarketData.app';
+      const provName = state.provider === 'tradier'    ? 'Tradier (Sandbox)'
+                     : state.provider === 'marketdata' ? 'MarketData.app'
+                     : state.provider === 'polygon'    ? 'Polygon.io'
+                     : state.provider;
       $('footerProvider').textContent = provName;
     }
   } catch (e) {
     console.error(e);
+    const msg = e.message || String(e);
     $('regimeTag').className = 'gamma-regime negative';
-    $('regimeTag').textContent = '❌ ' + (e.message || '加载失败');
-    // 配置缺失 → 显示完整 setup 指引（默认 banner 内容）
-    // 其他错误 → 替换为简短提示
-    if (e.code !== 'NO_PROVIDER_TOKEN') {
+
+    // 智能分流错误：识别"免费层无期权"、"IP 锁"等友好情况，给出清晰指引
+    const isOptionsBlocked = /entitled|NOT_AUTHORIZED|403/i.test(msg);
+    const isIpLocked       = /Only one device|IP address has changed|temporarily blocked/i.test(msg);
+    const isNoToken        = e.code === 'NO_PROVIDER_TOKEN';
+
+    if (isNoToken) {
+      $('regimeTag').className = 'gamma-regime pending';
+      $('regimeTag').textContent = '⚙️ 待配置数据源';
+      // 默认 banner 内容（HTML 已含 setup 指引）即可
+    } else if (isOptionsBlocked) {
+      $('regimeTag').className = 'gamma-regime pending';
+      $('regimeTag').textContent = '⏳ 数据源准备中';
+      $('errorBannerTitle').textContent = '⏳ GEX 工具数据源准备中';
+      $('errorBannerMsg').innerHTML = `
+        当前 provider 的免费层<strong>不含期权数据</strong>（OPRA 授权限制）。3 个解锁方案：<br>
+        <strong>① 等 Tradier brokerage 审核通过</strong> · 1-3 工作日 · <strong>免费</strong> · ⭐ 推荐<br>
+        <strong>② Polygon/Massive Options Starter</strong> · $29/月 · <a href="https://massive.com/pricing" target="_blank" style="color:var(--brand);">升级</a><br>
+        <strong>③ MarketData Standard</strong> · $14/月 · 解除 IP 锁 + 含期权 · <a href="https://www.marketdata.app/pricing" target="_blank" style="color:var(--brand);">升级</a><br>
+        <span style="color:var(--text-3);">📍 主看板 (/) 和 DDH 策略页 (/ddh.html) 数据完全独立，仍正常可用</span>
+      `;
+    } else if (isIpLocked) {
+      $('regimeTag').className = 'gamma-regime pending';
+      $('regimeTag').textContent = '⏳ 数据源准备中';
+      $('errorBannerTitle').textContent = '⏳ MarketData IP 锁触发';
+      $('errorBannerMsg').innerHTML = `
+        MarketData 免费层禁止多 IP 访问，与 Vercel 不兼容。建议：<br>
+        <strong>① 升 MarketData Standard ($14/月)</strong> 解除 IP 锁<br>
+        <strong>② 等 Tradier brokerage 审核通过 (1-3 天)</strong> 永久免费<br>
+        <span style="color:var(--text-3);">建议删除 Vercel 的 MARKETDATA_TOKEN，避免反复触发其安全机制</span>
+      `;
+    } else {
+      $('regimeTag').className = 'gamma-regime negative';
+      $('regimeTag').textContent = '❌ ' + msg.slice(0, 60);
       $('errorBannerTitle').textContent = `加载 ${state.symbol} 失败`;
-      $('errorBannerMsg').textContent = (e.message || String(e)) + '。可尝试切换 ticker，或检查 Vercel Functions 日志。';
+      $('errorBannerMsg').textContent = msg + '。可尝试切换 ticker，或检查 Vercel Functions 日志。';
     }
     $('setupBanner').classList.add('show');
   } finally {
